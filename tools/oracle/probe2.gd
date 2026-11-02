@@ -1,0 +1,18 @@
+extends SceneTree
+func _init():
+	var f = load("res://bin/FixedMath.gdns").new()
+	var t = f.div("1","3")
+	print("t*65536 = ", f.mul(t,"65536"))
+	print("t*2^32 = ", f.mul(t,"4294967296"))
+	var s = f.vec_len("1","1")
+	print("sqrt2*65536 = ", f.mul(s,"65536"))
+	print("sqrt2*2^20 = ", f.mul(s,"1048576"))
+	print("deg2rad90*65536 = ", f.mul(f.deg2rad("90"),"65536"))
+	print("0.1*65536 = ", f.mul("0.1","65536"))
+	print("0.1*2^20 = ", f.mul("0.1","1048576"))
+	print("max: ", f.add("32767","0"), " ", f.add("2147483647","0"), " ", f.add("2147483647","1"))
+	print("neg div -7/2: ", f.div("-7","2"), " int 7/2 ", f.div("7","2"))
+	print("angle_to_vec 45: ", f.angle_to_vec("45"))
+	print("vec_to_angle 1,1: ", f.vec_to_angle("1","1"))
+	print("lerp_int 0 100 .5: ", f.lerp_int(0,100,"0.5"))
+	quit()
