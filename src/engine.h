@@ -4,6 +4,7 @@
 #define ENGINE_H
 #include "fx.h"
 #include "phys.h"
+#include "hitbox.h"
 
 #define STATE_STACK 32
 #define SID_NONE (-1)
@@ -45,6 +46,11 @@ typedef struct {
     int state_screenshake_tick, flip_frame, sfx_tick, projectile_tick, timed_spawn_particle_tick;
     int extra_parry_hitlag;
     int sprite_anim;                                                    /* indice da animacao no atlas */
+    const hitbox_def_t *hb; int nhb;                                    /* hitboxes filhos do estado */
+    const hurtstate_def_t *hurt; int nhurt;                             /* HurtboxState (troca a hurtbox em ticks) */
+    const hurtstate_def_t *limb; int nlimb;                             /* LimbHurtbox (hurtboxes extras) */
+    uint8_t is_grab, has_hitboxes, is_guard_break;                      /* derivados dos hitboxes (preenchidos em obj_init) */
+    int earliest_hitbox;
 } state_def_t;
 
 struct state_s {
@@ -56,6 +62,9 @@ struct state_s {
     bool same_as_last_state, was_blocked; int number_of_hits_blocked;
     int max_tick, max_tick_shared;
     int ustate[8];                    /* variaveis privadas do script do estado (membros 'var' do .gd) */
+    hitbox_t *hbr;                    /* hitboxes em runtime (def->nhb itens) */
+    int cur_hurt; int hurt_tick; bool hurt_started; box_t hurt_prev;   /* HurtboxState em andamento */
+    bool *limb_active;                /* def->nlimb itens */
 };
 
 /* eventos de apresentacao (som, particula, projetil, tremor): o render/audio consome depois do tick */
@@ -74,11 +83,12 @@ struct obj_s {
     phys_t chara;
     sm_t sm;
     int id;
+    int uid;                                         /* identificador unico do objeto (substitui o nome nos hit_objects) */
     int hitlag_ticks, current_tick, game_tick, combo_count;
     bool gravity_enabled, can_update_sprite, disabled, initialized, is_ghost;
     bool state_interruptable, state_hit_cancellable;
     bool invulnerable, grounded_attack_immune, aerial_attack_immune, projectile_invulnerable, throw_invulnerable, roll_projectile_invulnerable;
-    fx hurt_x, hurt_y, hurt_w, hurt_h, def_hurt_x, def_hurt_y, def_hurt_w, def_hurt_h;   /* hurtbox atual / padrao */
+    box_t hurtbox, collision_box, def_hurtbox;       /* hurtbox atual / padrao e caixa de colisao entre personagens */
     int sprite_anim, sprite_frame;                  /* o que o renderer desenha */
     void *user;                                      /* dados do tipo de objeto (personagem/projetil) */
     ev_t *events; int nevents, max_events;
@@ -99,6 +109,12 @@ void obj_state_exit_shared(obj_t *o, state_t *s);
 void obj_init(obj_t *o, state_t *states, int nstates, sid start);
 void obj_tick(obj_t *o);
 void obj_emit(obj_t *o, ev_type t, sid st);
+void obj_update_boxes(obj_t *o);
+void state_setup_runtime(obj_t *o, state_t *s);   /* aloca hitboxes/limb do estado (chamar para cada estado antes de obj_init) */
+obj_t *eng_opponent(obj_t *o);
+void eng_hitbox_hit(hitbox_t *hb, obj_t *victim);
+int  obj_active_hitboxes(obj_t *o, hitbox_t **out, int max);   /* ativos e habilitados, ordenados por priority (estavel) */
+bool hurtbox_hit_check(obj_t *attacker_unused, hitbox_t *hb, obj_t *victim);  /* hitbox sobrepoe hurtbox ou hurtbox de membro */
 static inline state_t *obj_state(obj_t *o) { return o->sm.cur; }
 static inline int obj_facing(const obj_t *o) { return o->chara.facing; }
 

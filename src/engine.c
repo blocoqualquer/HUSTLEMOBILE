@@ -91,8 +91,10 @@ sid obj_state_enter_shared(obj_t *o, state_t *s)
 void obj_state_exit_shared(obj_t *o, state_t *s)
 {
     s->exit_tick = s->current_tick + s->exit_tick;
+    s->hurt_started = false;
     s->last_facing = o->chara.facing;
-    o->hurt_x = o->def_hurt_x; o->hurt_y = o->def_hurt_y; o->hurt_w = o->def_hurt_w; o->hurt_h = o->def_hurt_h;
+    { box_t d = o->def_hurtbox; d.pos_x = o->hurtbox.pos_x; d.pos_y = o->hurtbox.pos_y; d.facing = o->hurtbox.facing; o->hurtbox = d; }
+    for (int i = 0; i < s->def->nlimb; i++) s->limb_active[i] = false;
     o->invulnerable = o->projectile_invulnerable = o->roll_projectile_invulnerable = o->throw_invulnerable = false;
     o->aerial_attack_immune = o->grounded_attack_immune = false;
     if (s->def->disable_at_end) o->disabled = true;
@@ -170,9 +172,10 @@ void obj_init(obj_t *o, state_t *states, int nstates, sid start)
         states[i].def = d; states[i].id = i;
         states[i].current_tick = states[i].current_real_tick = states[i].start_tick = -1;
         states[i].exit_tick = states[i].max_tick = states[i].max_tick_shared = -1;
-        states[i].last_facing = 1;
+        states[i].last_facing = 1; states[i].cur_hurt = -1;
+        state_setup_runtime(o, &states[i]);
     }
-    o->def_hurt_x = o->hurt_x; o->def_hurt_y = o->hurt_y; o->def_hurt_w = o->hurt_w; o->def_hurt_h = o->hurt_h;
+    o->def_hurtbox = o->hurtbox;
     sm_change_state(o, start, NULL, true, true);
     o->sm.initialized = true; o->initialized = true;
 }
