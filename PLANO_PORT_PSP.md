@@ -35,7 +35,7 @@ Licença do código original: uso livre desde que se credite o criador original 
 | 0 | Toolchain PSP instalado, hello world gera `EBOOT.PBP` | feito |
 | 1 | Conversor de assets (PNG → atlas 8 bits swizzled, áudio → PCM 16-bit mono 22 kHz) | feito, testado no PPSSPP pelo usuário |
 | 2 | Conversor de `.tscn` para dados | dados resolvidos e validados: as 6 cenas de personagem (herança de `BaseChar.tscn` + padrões dos `export var`) batem em 10.855 de 10.855 valores com o jogo original no Godot headless. Falta só o empacotamento binário, que depende do formato que o motor em C vai ler |
-| 3 | Núcleo da simulação em C: ponto fixo, objetos, máquina de estados, hitbox/hurtbox, colisão, tick | |
+| 3 | Núcleo da simulação em C: ponto fixo, objetos, máquina de estados, hitbox/hurtbox, colisão, tick | em andamento: ponto fixo (`fx.h`, 14.014 vetores OK) e física de objeto (`phys.h`, fuzzer contra a lib original, 12.000 passos OK) prontos; falta BaseObj/StateMachine, hitbox/colisão e tick |
 | 4 | Estados comuns e `BaseChar` (hit stun, combos, parry, throw, clash, burst, super) | |
 | 5 | Renderer: sprites, câmera, stage, HUD, efeitos e partículas | |
 | 6 | Áudio | |
