@@ -29,6 +29,32 @@ typedef struct {
     sid  (*animation_finished)(obj_t *, state_t *);
 } state_vt_t;
 
+
+/* nome/categoria internado por personagem; conjuntos de ate 256 nomes (estados + categorias de interrupcao) */
+typedef struct { uint32_t w[8]; } nameset_t;
+static inline bool ns_has(const nameset_t *s, int id) { return id >= 0 && (s->w[id >> 5] >> (id & 31)) & 1; }
+static inline void ns_add(nameset_t *s, int id) { if (id >= 0) s->w[id >> 5] |= 1u << (id & 31); }
+static inline void ns_del(nameset_t *s, int id) { if (id >= 0) s->w[id >> 5] &= ~(1u << (id & 31)); }
+static inline bool ns_empty(const nameset_t *s) { for (int i = 0; i < 8; i++) if (s->w[i]) return false; return true; }
+
+/* exports de CharState.gd (CharacterState) */
+typedef struct {
+    uint8_t type, air_type, busy_interrupt_type;
+    uint8_t uses_air_movement, ignore_air_option_use_in_combos, land_cancel, throw_techable, interruptible_on_opponent_turn,
+            update_facing_on_exit, dynamic_iasa, backdash_iasa, allow_framecheat, next_state_on_hold, next_state_on_hold_on_opponent_turn,
+            combo_only, neutral_only, end_feint, usable_from_whiff_cancel_if_possible, count_projectile_hits, burst_cancellable, burstable,
+            self_hit_cancellable, self_interruptable, reversible, instant_cancellable, force_feintable, can_feint_if_possible, selectable,
+            always_usable, release_opponent_on_startup, release_opponent_on_exit, initiative_effect, apply_pushback, beats_backdash,
+            can_be_counterhit, force_super_effect, super_effect, scale_combo_meter, show_in_menu, flip_icon, flip_with_facing;
+    int landing_recovery, min_land_cancel_frame, iasa_at, iasa_on_hit, initiative_startup_reduction_amount, no_collision_start_frame,
+        no_collision_end_frame, tick_priority, super_level, supers_used, super_freeze_ticks;
+    sid land_cancel_state, hold_restart;
+    fx velocity_forward_meter_gain_multiplier, whiff_meter_gain_multiplier;
+    nameset_t interrupt_from, interrupt_into, hit_cancel_into, hit_cancel_exceptions, interrupt_exceptions, allowed_stances;
+    const int16_t *interrupt_frames; int ninterrupt_frames;
+    const char *title;
+} charstate_def_t;
+
 /* dados constantes do estado (exports de ObjectState, ja convertidos para fx) */
 typedef struct {
     const char *name;
@@ -51,6 +77,8 @@ typedef struct {
     const hurtstate_def_t *limb; int nlimb;                             /* LimbHurtbox (hurtboxes extras) */
     uint8_t is_grab, has_hitboxes, is_guard_break;                      /* derivados dos hitboxes (preenchidos em obj_init) */
     int earliest_hitbox;
+    const charstate_def_t *cs;                                          /* NULL para estados que nao sao CharacterState */
+    int name_id;                                                        /* id internado do nome do estado */
 } state_def_t;
 
 struct state_s {

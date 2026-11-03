@@ -27,6 +27,23 @@ def main(jpath, cid, out):
     states = [k for k in nodes if k.startswith('StateMachine/') and k.count('/') == 1]
     sid = {k.split('/')[1]: n for n, k in enumerate(states)}
     def sidof(name): return sid.get(name, -1) if name else -1
+    names = [k.split('/')[1] for k in states]          # id do nome de estado == sid
+    def nid(nm):
+        nm = nm.strip()
+        if nm not in names: names.append(nm)
+        return names.index(nm)
+    for nm in ('OffensiveBurst', 'InstantCancel', 'GroundedDefense', 'AerialDefense', 'GroundedGrab', 'AerialGrab', 'Wait', 'Fall', 'BusyNormal', 'BusyHurt', 'Normal', 'All'):
+        nid(nm)
+    extra = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'extra_names.txt')
+    if os.path.exists(extra):
+        for nm in open(extra).read().split():
+            nid(nm)
+    def nset(text):
+        w = [0] * 8
+        for ln in (text or '').split('\n'):
+            if ln.strip():
+                i_ = nid(ln); w[i_ >> 5] |= 1 << (i_ & 31)
+        return '{{%s}}' % ','.join('0x%08XU' % x for x in w)
     L = ['/* GERADO por tools/gen_c_data.py - nao editar */', '#include "../chardata.h"', '']
     vts = set(); scripts = {}
     for k in states:
@@ -93,6 +110,31 @@ def main(jpath, cid, out):
                     L.append(' {%s, %s, %s, %s, %s, %s, %s},' % (i(p['x']), i(p['y']), i(p['width']), i(p['height']), i(p['start_tick']), i(p['active_ticks']), b(p.get('endless'))))
                 L.append('};')
         nlimb_total += len(lbs)
+    for k in states:
+        p = nodes[k]['props']
+        if 'iasa_at' not in p: continue
+        cn = cname(k.split('/')[1])
+        ia = p['iasa_at']
+        if ia < 0: ia = p['anim_length'] + ia
+        fr = p.get('interrupt_frames') or []
+        if fr: L.append('static const int16_t if_%s_%s[] = {%s};' % (cid, cn, ','.join(str(int(x)) for x in fr)))
+        f = []
+        bools = ['uses_air_movement', 'ignore_air_option_use_in_combos', 'land_cancel', 'throw_techable', 'interruptible_on_opponent_turn', 'update_facing_on_exit', 'dynamic_iasa', 'backdash_iasa', 'allow_framecheat', 'next_state_on_hold', 'next_state_on_hold_on_opponent_turn', 'combo_only', 'neutral_only', 'end_feint', 'usable_from_whiff_cancel_if_possible', 'count_projectile_hits', 'burst_cancellable', 'burstable', 'self_hit_cancellable', 'self_interruptable', 'reversible', 'instant_cancellable', 'force_feintable', 'can_feint_if_possible', 'selectable', 'always_usable', 'release_opponent_on_startup', 'release_opponent_on_exit', 'initiative_effect', 'apply_pushback', 'beats_backdash', 'can_be_counterhit', 'force_super_effect', 'show_in_menu', 'flip_icon', 'flip_with_facing']
+        f += [(x, b(p[x])) for x in bools]
+        f += [('super_effect', b(p['super_effect_'])), ('scale_combo_meter', b(p['scale_combo_meter_']))]
+        f += [('type', i(p['type'])), ('air_type', i(p['air_type'])), ('busy_interrupt_type', i(p['busy_interrupt_type']))]
+        f += [('landing_recovery', i(p['landing_recovery'])), ('min_land_cancel_frame', i(p['min_land_cancel_frame'])), ('iasa_at', str(ia)), ('iasa_on_hit', i(p['iasa_on_hit'])),
+              ('initiative_startup_reduction_amount', i(p['initiative_startup_reduction_amount'])), ('no_collision_start_frame', i(p['no_collision_start_frame'])),
+              ('no_collision_end_frame', i(p['no_collision_end_frame'])), ('tick_priority', i(p['tick_priority'])), ('super_level', i(p['super_level_'])),
+              ('supers_used', i(p['supers_used_'])), ('super_freeze_ticks', i(p['super_freeze_ticks_'])),
+              ('land_cancel_state', i(sidof(p['land_cancel_state']))), ('hold_restart', i(sidof(p['hold_restart']))),
+              ('velocity_forward_meter_gain_multiplier', fxs(p['velocity_forward_meter_gain_multiplier'])), ('whiff_meter_gain_multiplier', fxs(p['whiff_meter_gain_multiplier'])),
+              ('interrupt_from', nset(p['interrupt_from_string']) if p['selectable'] else nset('')), ('interrupt_into', nset(p['interrupt_into_string'])),
+              ('hit_cancel_into', nset(p['hit_cancel_into_string'])), ('hit_cancel_exceptions', nset(p['hit_cancel_exceptions_string'])),
+              ('interrupt_exceptions', nset(p['interrupt_exceptions_string'])), ('allowed_stances', nset(p['allowed_stances_string'])),
+              ('title', '"%s"' % (p['title'] or k.split('/')[1]).replace('"', "'"))]
+        if fr: f += [('interrupt_frames', 'if_%s_%s' % (cid, cn)), ('ninterrupt_frames', str(len(fr)))]
+        L.append('static const charstate_def_t cs_%s_%s = {' % (cid, cn) + ', '.join('.%s = %s' % kv for kv in f) + '};')
     L.append('static const state_def_t states_%s[] = {' % cid)
     for n, k in enumerate(states):
         sname = k.split('/')[1]; cn = cname(sname); nd = nodes[k]; p = nd['props']
@@ -125,13 +167,16 @@ def main(jpath, cid, out):
         if nhb: f += [('hb', 'hb_%s_%s' % (cid, cn)), ('nhb', str(nhb))]
         if nhs: f += [('hurt', 'hs_%s_%s' % (cid, cn)), ('nhurt', str(nhs))]
         if nlb: f += [('limb', 'lb_%s_%s' % (cid, cn)), ('nlimb', str(nlb))]
+        if 'iasa_at' in p: f += [('cs', '&cs_%s_%s' % (cid, cn))]
+        f += [('name_id', str(n))]
         L.append(' {' + ', '.join('.%s = %s' % kv for kv in f) + '},')
     L.append('};')
     root = nodes['.']['props']
     hb = nodes.get('Hurtbox', {}).get('props', {}); cb = nodes.get('CollisionBox', {}).get('props', {})
     bx = lambda q: '{%s, %s, %s, %s, 0, 0, 1}' % (i(q.get('x', 0)), i(q.get('y', 0)), i(q.get('width', 0)), i(q.get('height', 0)))
-    L.append('const chardata_t chardata_%s = {"%s", %d, states_%s, %d, anims_%s, %s, %s, %s, %s, %s, %s, %s, %s};' % (
-        cid, cid, len(states), cid, len(anim_names), cid, fxs(root['gravity']), fxs(root['ground_friction']), fxs(root['air_friction']),
+    L.insert(L.index('static const state_def_t states_%s[] = {' % cid), 'static const char *const names_%s[] = {%s};' % (cid, ','.join('"%s"' % x for x in names)))
+    L.append('const chardata_t chardata_%s = {"%s", %d, states_%s, %d, anims_%s, %d, names_%s, %s, %s, %s, %s, %s, %s, %s, %s};' % (
+        cid, cid, len(states), cid, len(anim_names), cid, len(names), cid, fxs(root['gravity']), fxs(root['ground_friction']), fxs(root['air_friction']),
         fxs(root['max_ground_speed']), fxs(root['max_air_speed']), fxs(root['max_fall_speed']), bx(hb), bx(cb)))
     open(out, 'w').write('\n'.join(L) + '\n')
     print('%s: %d estados, %d animacoes, %d bytes de C' % (cid, len(states), len(anim_names), os.path.getsize(out)))

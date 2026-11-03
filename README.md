@@ -23,3 +23,8 @@ Personagens: stickman, robo, wizard, mutant, swordandgun. O Godot headless para 
 ## Testar
 Copie `EBOOT.PBP` e a pasta `data/` para `PSP/GAME/YOMIHUSTLE` (ou abra no PPSSPP).
 No visualizador: cima/baixo troca de personagem, esquerda/direita troca de página, L/R navega pelos sprites, O mostra um sprite, X mostra a página.
+
+## Dados gerados
+
+`src/gen/*.c` (estados, hitboxes, animações) é **gerado** a partir do seu `.tscn` original por `tools/gen_c_data.py` e não é versionado
+(são dados do jogo). Gere localmente: `python3 tools/convert_char.py <raiz> <cena.tscn> char.json && python3 tools/gen_c_data.py char.json <id> src/gen/<id>.c`.

@@ -9,6 +9,7 @@ typedef struct {
     const char *name;
     int nstates; const state_def_t *states;
     int nanims; const anim_def_t *anims;
+    int nnames; const char *const *names;       /* nomes internados (estados e categorias) */
     fx gravity, ground_friction, air_friction, max_ground_speed, max_air_speed, max_fall_speed;
     box_t hurtbox, collision_box;
 } chardata_t;
