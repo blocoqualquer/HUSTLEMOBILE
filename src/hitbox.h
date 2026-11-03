@@ -40,7 +40,7 @@ typedef struct {
     uint8_t cancellable, increment_combo, hits_otg, hits_vs_standing, hits_vs_grounded, hits_vs_aerial, can_counter_hit;
     fx di_modifier, sdi_modifier, meter_gain_modifier; int parry_meter_gain;
     uint8_t ignore_armor; int followup_state; uint8_t force_grounded, can_clash, hits_vs_dizzy, beats_grab, hits_projectiles;
-    uint8_t ignore_projectile_armor, allowed_to_hit_own_team, guard_break; fx guard_break_proration;
+    uint8_t ignore_projectile_armor, allowed_to_hit_own_team, guard_break; int guard_break_proration;
     uint8_t block_punishable, parriable, block_cancel_allowed; int plus_frames, hit_height, priority, group;
     int screenshake_amount, screenshake_frames; uint8_t bump_on_whiff, rumble, bass_on_whiff;
     fx dir_x, dir_y, knockback; uint8_t launch_reversible, vacuum, send_away_from_center;

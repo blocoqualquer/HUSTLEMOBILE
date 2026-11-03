@@ -16,10 +16,23 @@ void obj_update_boxes(obj_t *o)
 /* equivale a ObjectState.setup_hitboxes + setup_hurtboxes: aloca runtime e liga grupos */
 void state_setup_runtime(obj_t *o, state_t *s)
 {
-    const state_def_t *d = s->def;
+    const state_def_t *d = &s->d;
     s->hbr = d->nhb ? calloc((size_t)d->nhb, sizeof(hitbox_t)) : NULL;
     s->limb_active = d->nlimb ? calloc((size_t)d->nlimb, sizeof(bool)) : NULL;
     for (int i = 0; i < d->nhb; i++) hitbox_init(&s->hbr[i], &d->hb[i], o);
+    {   /* setup_hitboxes: flags derivadas */
+        int earliest = 999999999; state_def_t *m = &s->d;
+        for (int i = 0; i < d->nhb; i++) {
+            const hitbox_def_t *h = &d->hb[i];
+            if (h->is_throwbox) m->is_grab = 1;
+            if (h->guard_break) m->is_guard_break = 1;
+            bool detect = h->hitbox_type == HB_DETECT;
+            if (!detect) m->has_hitboxes = 1;
+            if (h->start_tick > 0 && !detect && h->start_tick < earliest) earliest = h->start_tick;
+        }
+        if (m->earliest_hitbox <= 0 && earliest != 999999999) m->earliest_hitbox = earliest;
+        s->pr.initial_parry_type = d->parry_type; s->pr.parry_type = d->parry_type;
+    }
     for (int i = 0; i < d->nhb; i++) {
         int n = 0;
         for (int j = 0; j < d->nhb; j++) if (d->hb[j].group == d->hb[i].group) n++;
@@ -32,7 +45,7 @@ int obj_active_hitboxes(obj_t *o, hitbox_t **out, int max)
 {
     int n = 0; state_t *s = o->sm.cur;
     if (!s) return 0;
-    for (int i = 0; i < s->def->nhb && n < max; i++) {
+    for (int i = 0; i < s->d.nhb && n < max; i++) {
         hitbox_t *h = &s->hbr[i];
         if (!h->active || !h->enabled) continue;
         int k = n++;                                              /* insercao estavel por priority crescente */
@@ -44,7 +57,7 @@ int obj_active_hitboxes(obj_t *o, hitbox_t **out, int max)
 
 void eng_process_hitboxes(obj_t *o, state_t *s)
 {
-    const state_def_t *d = s->def;
+    const state_def_t *d = &s->d;
     int x = phys_x(&o->chara), y = phys_y(&o->chara);
     for (int i = 0; i < d->nhb; i++) {
         hitbox_t *h = &s->hbr[i];
@@ -84,7 +97,7 @@ static void hurt_end(obj_t *o, state_t *s)
 
 void eng_process_hurtboxes(obj_t *o, state_t *s)
 {
-    const state_def_t *d = s->def;
+    const state_def_t *d = &s->d;
     if (s->cur_hurt >= 0 && s->cur_hurt < d->nhurt) {              /* HurtboxState.tick */
         const hurtstate_def_t *c = &d->hurt[s->cur_hurt];
         s->hurt_tick++;
@@ -109,9 +122,9 @@ bool hurtbox_hit_check(obj_t *unused, hitbox_t *hb, obj_t *victim)
     if (box_overlaps(&hb->box, &victim->hurtbox)) return true;
     state_t *s = victim->sm.cur;
     if (!s) return false;
-    for (int i = 0; i < s->def->nlimb; i++) {
-        if (!limb_active_now(s, &s->def->limb[i])) continue;
-        box_t b = { s->def->limb[i].x, s->def->limb[i].y, s->def->limb[i].w, s->def->limb[i].h,
+    for (int i = 0; i < s->d.nlimb; i++) {
+        if (!limb_active_now(s, &s->d.limb[i])) continue;
+        box_t b = { s->d.limb[i].x, s->d.limb[i].y, s->d.limb[i].w, s->d.limb[i].h,
                     phys_x(&victim->chara), phys_y(&victim->chara), victim->chara.facing };
         if (box_overlaps(&hb->box, &b)) return true;
     }

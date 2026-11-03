@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gera C (inicializadores constantes) a partir do JSON de personagem de tools/convert_char.py.
 
-uso: gen_c_data.py <char.json> <char_id> <saida.c>
+uso: gen_c_data.py <char.json> <char_id> <saida.c> [<raiz_do_jogo>]   (a raiz permite classificar estados por heranca: hurt/parry/counter/throw)
 Emite hitbox_def_t / hurtstate_def_t / state_def_t / anim_def_t / chardata_t. Scripts de estado viram referencias
 fracas a `vt_<caminho_do_script>` (se o port do script nao existir, o ponteiro e NULL e o estado usa so o comportamento base)."""
 import sys, os, json, re
@@ -20,7 +20,52 @@ def fnv1a(s):
     for c in s.encode(): h = ((h ^ c) * 0x01000193) & 0xFFFFFFFF
     return h
 
-def main(jpath, cid, out):
+def script_chain(root, script):
+    """sequencia de scripts pelo 'extends' (ate sair de caminhos de arquivo)."""
+    chain = []
+    seen = set()
+    while script and script not in seen and root:
+        seen.add(script)
+        path = os.path.join(root, script.replace('res://', ''))
+        if not os.path.exists(path): break
+        chain.append(script)
+        m = None
+        for ln in open(path, encoding='utf-8', errors='replace'):
+            m = re.match(r'\s*extends\s+"?([^"\s]+)"?', ln)
+            if m: break
+        if not m: break
+        t = m.group(1)
+        if t.endswith('.gd'): script = t.replace('res://', '')
+        else:
+            # classe por nome: procurar class_name no projeto (cache simples)
+            script = CLASSES.get(t)
+            if script is None: chain.append('class:' + t); break
+    return chain
+
+CLASSES = {}
+def index_classes(root):
+    if not root: return
+    for dp, _, fns in os.walk(root):
+        for fn in fns:
+            if fn.endswith('.gd'):
+                p = os.path.join(dp, fn)
+                for ln in open(p, encoding='utf-8', errors='replace'):
+                    m = re.match(r'\s*class_name\s+(\w+)', ln)
+                    if m: CLASSES[m.group(1)] = os.path.relpath(p, root).replace('\\', '/'); break
+
+def kind_of(root, script):
+    if not script: return 0
+    names = [os.path.basename(x).replace('.gd', '') for x in script_chain(root, script) if not x.startswith('class:')]
+    if 'HurtGrounded' in names: return 1
+    if 'HurtAerial' in names: return 2
+    if 'NewParry' in names: return 4
+    if 'Parry' in names: return 3
+    if 'CounterAttack' in names: return 5
+    if 'ThrowState' in names: return 6
+    return 0
+
+def main(jpath, cid, out, root=None):
+    index_classes(root)
     d = json.load(open(jpath)); nodes = d['nodes']
     sprite_anims = d['animations'].get('Flip/Sprite', {})
     anim_names = sorted(sprite_anims)
@@ -85,7 +130,7 @@ def main(jpath, cid, out):
                      ('parry_meter_gain', i(p['parry_meter_gain'])), ('ignore_armor', b(p['ignore_armor'])), ('followup_state', i(sidof(p['followup_state']))),
                      ('force_grounded', b(p['force_grounded'])), ('can_clash', b(p['can_clash'] and p['hitbox_type'] != 6)), ('hits_vs_dizzy', b(p['hits_vs_dizzy'])),
                      ('beats_grab', b(p['beats_grab'])), ('hits_projectiles', b(p['hits_projectiles'])), ('ignore_projectile_armor', b(p['ignore_projectile_armor'])),
-                     ('allowed_to_hit_own_team', b(p['allowed_to_hit_own_team'])), ('guard_break', b(p['guard_break'])), ('guard_break_proration', fxs(p['guard_break_proration'])),
+                     ('allowed_to_hit_own_team', b(p['allowed_to_hit_own_team'])), ('guard_break', b(p['guard_break'])), ('guard_break_proration', i(p['guard_break_proration'])),
                      ('block_punishable', b(p['block_punishable'])), ('parriable', b(p['parriable'])), ('block_cancel_allowed', b(p['block_cancel_allowed'])),
                      ('plus_frames', i(p['plus_frames'])), ('hit_height', i(p['hit_height'])), ('priority', i(p['priority'])), ('group', i(p['group'])),
                      ('screenshake_amount', i(p['screenshake_amount'])), ('screenshake_frames', i(p['screenshake_frames'])), ('bump_on_whiff', b(p['bump_on_whiff'])),
@@ -148,7 +193,7 @@ def main(jpath, cid, out):
         if salen < 0: salen = len(sprite_anims[anim]['frames']) if ai >= 0 else p['anim_length']
         ef = p['enter_force_speed'] != '0.0'; tf = p['force_speed'] != '0.0'
         fm = lambda a, s: 'FX_RAW(%d)' % ((parse(str(a)) * parse(str(s))) >> 16)
-        f = [('name', '"%s"' % sname), ('vt', '&%s' % scripts[k] if k in scripts else 'NULL')]
+        f = [('name', '"%s"' % sname), ('vt', '&%s' % scripts[k] if k in scripts else 'NULL'), ('kind', str(kind_of(root, nd.get('script'))))]
         for nm in ('apply_forces', 'apply_fric', 'apply_grav', 'reset_momentum', 'reset_x_momentum', 'reset_y_momentum', 'apply_custom_x_fric', 'apply_custom_y_fric',
                    'apply_custom_grav', 'apply_forces_no_limit', 'apply_custom_limits', 'loop_animation', 'absolute_loop', 'refresh_loop', 'endless', 'disable_at_end',
                    'force_same_direction_as_previous_state', 'spawn_particle_on_enter', 'projectile_match_facing', 'projectile_local_pos'):
@@ -168,6 +213,12 @@ def main(jpath, cid, out):
         if nhs: f += [('hurt', 'hs_%s_%s' % (cid, cn)), ('nhurt', str(nhs))]
         if nlb: f += [('limb', 'lb_%s_%s' % (cid, cn)), ('nlimb', str(nlb))]
         if 'iasa_at' in p: f += [('cs', '&cs_%s_%s' % (cid, cn))]
+        if 'parry_type' in p and 'can_parry' in p:
+            f += [('can_parry', b(p['can_parry'])), ('parry_type', i(p['parry_type'])), ('push', b(p.get('push'))), ('use_guard_sprites', b(p.get('use_guard_sprites'))),
+                  ('autoguard', b(p.get('autoguard'))), ('disable_aerial_movement', b(p.get('disable_aerial_movement'))), ('reblock', b(p.get('reblock')))]
+            pl = p.get('particle_location') or {}
+            a = pl.get('a', [0, 0]) if isinstance(pl, dict) else [0, 0]
+            f += [('particle_x', str(int(a[0]) if len(a) > 0 else 0)), ('particle_y', str(int(a[1]) if len(a) > 1 else 0))]
         f += [('name_id', str(n))]
         L.append(' {' + ', '.join('.%s = %s' % kv for kv in f) + '},')
     L.append('};')
@@ -182,4 +233,4 @@ def main(jpath, cid, out):
     print('%s: %d estados, %d animacoes, %d bytes de C' % (cid, len(states), len(anim_names), os.path.getsize(out)))
 
 if __name__ == '__main__':
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])

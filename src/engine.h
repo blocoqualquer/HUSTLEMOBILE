@@ -55,6 +55,8 @@ typedef struct {
     const char *title;
 } charstate_def_t;
 
+enum { KIND_NORMAL, KIND_HURT_GROUNDED, KIND_HURT_AERIAL, KIND_PARRY_OLD, KIND_PARRY_NEW, KIND_COUNTER, KIND_THROW };
+
 /* dados constantes do estado (exports de ObjectState, ja convertidos para fx) */
 typedef struct {
     const char *name;
@@ -75,6 +77,9 @@ typedef struct {
     const hitbox_def_t *hb; int nhb;                                    /* hitboxes filhos do estado */
     const hurtstate_def_t *hurt; int nhurt;                             /* HurtboxState (troca a hurtbox em ticks) */
     const hurtstate_def_t *limb; int nlimb;                             /* LimbHurtbox (hurtboxes extras) */
+    /* exports de ParryState/NewParry (kind PARRY_*) */
+    uint8_t can_parry, push, use_guard_sprites, autoguard, disable_aerial_movement, reblock; int parry_type, particle_x, particle_y;
+    uint8_t kind;                                                       /* KIND_*: papel do estado no combate (hurt, parry, counter, throw) */
     uint8_t is_grab, has_hitboxes, is_guard_break;                      /* derivados dos hitboxes (preenchidos em obj_init) */
     int earliest_hitbox;
     const charstate_def_t *cs;                                          /* NULL para estados que nao sao CharacterState */
@@ -82,7 +87,10 @@ typedef struct {
 } state_def_t;
 
 struct state_s {
-    const state_def_t *def;
+    const state_def_t *def;           /* definicao constante (identidade do estado) */
+    state_def_t d;                    /* copia mutavel: scripts alteram anim_length, endless, fallback_state, etc. */
+    charstate_def_t cs;               /* idem para CharacterState (listas de interrupcao mutaveis); valido se d.cs != NULL */
+    int anim;                         /* animacao atual (anim_name pode ser trocado em runtime) */
     sid id;
     bool active;
     void *data;                       /* dados passados na troca de estado (ver queue_state) */
@@ -91,6 +99,13 @@ struct state_s {
     int max_tick, max_tick_shared;
     int ustate[8];                    /* variaveis privadas do script do estado (membros 'var' do .gd) */
     hitbox_t *hbr;                    /* hitboxes em runtime (def->nhb itens) */
+    /* variaveis de CharacterState */
+    bool hit_yet, hit_anything, hit_fighter, character_state_was_blocked, hit_cancelled, started_during_combo, feinting, land_cancelled;
+    bool started_in_air, entered_in_air, hit_hit_cancellable_projectile, initiative_startup_reduction, is_brace;
+    /* ParryState / NewParry */
+    struct { bool parry_active, perfect, parried, punishable, parried_last, started_in_combo; int parry_type, initial_parry_type, parry_tick, extra_iasa; } pr;
+    /* CharacterHurtState / HurtGrounded / HurtAerial */
+    struct { int hitstun, bounce_frames; bool can_act, wall_slam, knockdown, hard_knockdown, ground_bounced, brace, guard_broken, counter; void *hit; } hu;
     int cur_hurt; int hurt_tick; bool hurt_started; box_t hurt_prev;   /* HurtboxState em andamento */
     bool *limb_active;                /* def->nlimb itens */
 };
@@ -118,6 +133,7 @@ struct obj_s {
     bool invulnerable, grounded_attack_immune, aerial_attack_immune, projectile_invulnerable, throw_invulnerable, roll_projectile_invulnerable;
     box_t hurtbox, collision_box, def_hurtbox;       /* hurtbox atual / padrao e caixa de colisao entre personagens */
     int sprite_anim, sprite_frame;                  /* o que o renderer desenha */
+    bool is_fighter; struct fighter_s *fighter;      /* fighter dono (o proprio, para lutadores; criador, para projeteis) */
     void *user;                                      /* dados do tipo de objeto (personagem/projetil) */
     ev_t *events; int nevents, max_events;
 };
@@ -136,6 +152,8 @@ void obj_state_exit_shared(obj_t *o, state_t *s);
 /* BaseObj */
 void obj_init(obj_t *o, state_t *states, int nstates, sid start);
 void obj_tick(obj_t *o);
+void obj_state_tick(obj_t *o);          /* BaseObj.state_tick */
+void obj_change_state(obj_t *o, sid st, void *data);
 void obj_emit(obj_t *o, ev_type t, sid st);
 void obj_update_boxes(obj_t *o);
 void state_setup_runtime(obj_t *o, state_t *s);   /* aloca hitboxes/limb do estado (chamar para cada estado antes de obj_init) */

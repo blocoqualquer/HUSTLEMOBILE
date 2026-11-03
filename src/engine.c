@@ -36,8 +36,8 @@ void sm_change_state(obj_t *o, sid next, void *data, bool enter, bool exit)
     if (m->cur) {
         state_t *c = m->cur;
         if (exit) {
-            if (c->def->vt && c->def->vt->exit_shared) c->def->vt->exit_shared(o, c); else obj_state_exit_shared(o, c);
-            if (c->def->vt && c->def->vt->exit) c->def->vt->exit(o, c);
+            if (c->d.vt && c->d.vt->exit_shared) c->d.vt->exit_shared(o, c); else obj_state_exit_shared(o, c);
+            if (c->d.vt && c->d.vt->exit) c->d.vt->exit(o, c);
             eng_deactivate_hitboxes(o);              /* BaseObj._on_state_exited */
         }
         c->active = false;
@@ -49,7 +49,7 @@ void sm_change_state(obj_t *o, sid next, void *data, bool enter, bool exit)
     n->active = true;
     n->data = data;
     if (enter) {
-        const state_vt_t *vt = n->def->vt;
+        const state_vt_t *vt = n->d.vt;
         sid r = (vt && vt->enter_shared) ? vt->enter_shared(o, n) : obj_state_enter_shared(o, n);
         if (r != SID_NONE) { sm_change_state(o, r, NULL, true, true); return; }
         if (vt && vt->enter) { r = vt->enter(o, n); if (r != SID_NONE) { sm_change_state(o, r, NULL, true, true); return; } }
@@ -60,7 +60,7 @@ void sm_tick(obj_t *o)
 {
     sm_t *m = &o->sm;
     if (m->has_queued) sm_change_state(o, m->queued, m->queued_data, true, true);
-    state_t *s = m->cur; const state_vt_t *vt = s->def->vt;
+    state_t *s = m->cur; const state_vt_t *vt = s->d.vt;
     if (vt && vt->tick_before) vt->tick_before(o, s);
     sid r = (vt && vt->tick_shared) ? vt->tick_shared(o, s) : obj_state_tick_shared(o, s);
     if (r == SID_NONE && vt && vt->tick) r = vt->tick(o, s);
@@ -71,7 +71,7 @@ void sm_tick(obj_t *o)
 /* ---------- ObjectState base ---------- */
 sid obj_state_enter_shared(obj_t *o, state_t *s)
 {
-    const state_def_t *d = s->def;
+    const state_def_t *d = &s->d;
     s->same_as_last_state = false;
     state_t *prev = prev_state(o);
     if (prev) {
@@ -94,17 +94,17 @@ void obj_state_exit_shared(obj_t *o, state_t *s)
     s->hurt_started = false;
     s->last_facing = o->chara.facing;
     { box_t d = o->def_hurtbox; d.pos_x = o->hurtbox.pos_x; d.pos_y = o->hurtbox.pos_y; d.facing = o->hurtbox.facing; o->hurtbox = d; }
-    for (int i = 0; i < s->def->nlimb; i++) s->limb_active[i] = false;
+    for (int i = 0; i < s->d.nlimb; i++) s->limb_active[i] = false;
     o->invulnerable = o->projectile_invulnerable = o->roll_projectile_invulnerable = o->throw_invulnerable = false;
     o->aerial_attack_immune = o->grounded_attack_immune = false;
-    if (s->def->disable_at_end) o->disabled = true;
+    if (s->d.disable_at_end) o->disabled = true;
 }
 
 static void update_sprite_frame(obj_t *o, state_t *s)
 {
-    const state_def_t *d = s->def;
-    if (d->sprite_anim < 0) return;
-    if (o->sprite_anim != d->sprite_anim) { o->sprite_anim = d->sprite_anim; o->sprite_frame = 0; }
+    const state_def_t *d = &s->d;
+    if (s->anim < 0) return;
+    if (o->sprite_anim != s->anim) { o->sprite_anim = s->anim; o->sprite_frame = 0; }
     int tpf = d->ticks_per_frame > 0 ? d->ticks_per_frame : 1;
     int sprite_tick = s->current_tick / tpf;
     if (d->loop_animation && d->absolute_loop) sprite_tick = o->current_tick / tpf;
@@ -123,7 +123,7 @@ static void limit_x_speed(obj_t *o, fx limit)
 
 sid obj_state_tick_shared(obj_t *o, state_t *s)
 {
-    const state_def_t *d = s->def; phys_t *c = &o->chara;
+    const state_def_t *d = &s->d; phys_t *c = &o->chara;
     if (s->current_tick == -1) {
         if (d->spawn_particle_on_enter) obj_emit(o, EV_PARTICLE, s->id);
         if (d->has_enter_force) phys_force_rel(c, d->enter_force_x, d->enter_force_y);
@@ -169,7 +169,8 @@ void obj_init(obj_t *o, state_t *states, int nstates, sid start)
     for (int i = 0; i < nstates; i++) {
         const state_def_t *d = states[i].def;   /* preenchido pelo chamador antes */
         memset(&states[i], 0, sizeof states[i]);
-        states[i].def = d; states[i].id = i;
+        states[i].def = d; states[i].id = i; states[i].d = *d; states[i].anim = d->sprite_anim;
+        if (d->cs) { states[i].cs = *d->cs; states[i].d.cs = &states[i].cs; }
         states[i].current_tick = states[i].current_real_tick = states[i].start_tick = -1;
         states[i].exit_tick = states[i].max_tick = states[i].max_tick_shared = -1;
         states[i].last_facing = 1; states[i].cur_hurt = -1;
@@ -180,15 +181,15 @@ void obj_init(obj_t *o, state_t *states, int nstates, sid start)
     o->sm.initialized = true; o->initialized = true;
 }
 
-static void state_tick(obj_t *o)
+void obj_state_tick(obj_t *o)
 {
     bool once = true;
     while (once || o->sm.cur->current_tick < 0) {
         once = false;
         sm_tick(o);
         state_t *s = o->sm.cur;
-        if (!s->def->endless && s->current_tick >= s->def->anim_length && !o->sm.has_queued) {
-            sm_queue_state(o, s->def->fallback_state, NULL);
+        if (!s->d.endless && s->current_tick >= s->d.anim_length && !o->sm.has_queued) {
+            sm_queue_state(o, s->d.fallback_state, NULL);
             sm_tick(o);
         }
     }
@@ -198,9 +199,11 @@ void obj_tick(obj_t *o)
 {
     if (o->hitlag_ticks > 0) o->hitlag_ticks--;
     else {
-        state_tick(o);
+        obj_state_tick(o);
         o->current_tick++; o->game_tick++;
         phys_update_grounded(&o->chara);
     }
     o->can_update_sprite = true;
 }
+
+void obj_change_state(obj_t *o, sid st, void *data) { sm_change_state(o, st, data, true, true); }
