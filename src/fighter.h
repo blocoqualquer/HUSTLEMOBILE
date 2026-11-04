@@ -104,8 +104,10 @@ struct fighter_s {
     bool moved_forward, moved_backward, buffer_moved_forward, buffer_moved_backward, on_the_ground, sadness_enabled, game_over;
     bool burst_enabled, di_enabled, prorated_di, infinite_resources, one_hit_ko, always_perfect_parry, clashing, grounded_last_frame;
     int action, action_data_i; void *action_data;          /* acao escolhida (sid ou ACTION_*) e dados */
-    int queued_action; void *queued_data; bool queued_feint; fxv queued_di; bool has_queued_di; bool queued_reverse;
-    bool buffered_valid; int buffered_action; void *buffered_data;
+    int queued_action; void *queued_data;
+    bool has_extra, ex_has_di, ex_has_reverse, ex_reverse; fxv ex_di; int ex_feint;           /* "extra" da acao: DI, reverse, feint (-1: ausente) */
+    bool buffered_valid; int buffered_action; void *buffered_data; bool buffered_has_extra, b_ex_has_di, b_ex_has_reverse, b_ex_reverse; fxv b_ex_di; int b_ex_feint;
+    const struct fighter_vt_s *vt; const char *const *names; int nnames;
     /* DI e knockback */
     fxv current_di, current_nudge, last_vel; fx nudge_amount, min_di_scaling, max_di_scaling, di_modifier, knockback_taken_modifier, damage_taken_modifier;
     fx global_damage_modifier, global_hitstun_modifier, global_hitstop_modifier, parry_knockback_divisor, parry_combo_scaling, burst_parry_combo_scaling;
@@ -124,7 +126,26 @@ struct fighter_s {
 void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstates, sid start, int id);
 void fighter_tick_before(fighter_t *f);
 void fighter_tick(fighter_t *f);
-void fighter_select_action(fighter_t *f, int action, void *data, bool feint, bool has_di, fxv di, bool reverse);
+typedef struct { bool has_di, has_reverse, reverse; fxv di; int feint; } action_extra_t;   /* feint: -1 ausente, 0/1 */
+void fighter_select_action(fighter_t *f, int action, void *data, const action_extra_t *extra);
+int  fighter_name_id(const fighter_t *f, const char *name);
+typedef struct { int timing; int height_x, height_y; } parry_data_t;      /* data dos estados de parry ("Melee Parry Timing", "Block Height") */
+
+/* ganchos por personagem (metodos virtuais de BaseChar/Fighter); NULL = comportamento padrao */
+typedef struct fighter_vt_s {
+    void (*process_action)(fighter_t *, int action);
+    void (*turn_end_effects)(fighter_t *);
+    void (*turn_start_effects)(fighter_t *);
+    void (*on_launched)(fighter_t *);
+    bool (*has_autoblock_armor)(fighter_t *);
+    bool (*process_continue)(fighter_t *);
+    bool (*can_block_cancel)(fighter_t *);
+    bool (*can_guard_break)(fighter_t *);
+    bool (*can_perfect_parry)(fighter_t *);
+    void (*on_attack_blocked)(fighter_t *);
+    void (*on_blocked_something)(fighter_t *);
+    bool (*is_in_install_super)(fighter_t *);
+} fighter_vt_t;
 
 /* medidores */
 void fighter_gain_burst_meter(fighter_t *f, int amount, bool passive);
@@ -132,6 +153,12 @@ void fighter_gain_super_meter(fighter_t *f, int amount, fx stale_amount);
 void fighter_gain_super_meter_raw(fighter_t *f, int amount);
 void fighter_use_super_bar(fighter_t *f);
 void fighter_add_penalty(fighter_t *f, int amount, bool ignore_min_distance);
+void fighter_gain_burst(fighter_t *f);
+void fighter_use_super_meter(fighter_t *f, int amount);
+void fighter_drain_super_meter(fighter_t *f, int amount);
+void fighter_use_air_movement(fighter_t *f);
+fxv  obj_xy_to_dir(fx x, fx y, fx scale);
+int  fighter_resolve_continue(fighter_t *f);   /* "Continue": hold restarts / fallback (states_common) */
 /* combate */
 void fighter_hit_data(hitdata_t *out, const hitbox_t *h);
 void fighter_hit_by(fighter_t *f, hitdata_t *hit, bool force_hit);

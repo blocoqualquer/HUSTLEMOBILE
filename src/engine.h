@@ -101,7 +101,7 @@ struct state_s {
     hitbox_t *hbr;                    /* hitboxes em runtime (def->nhb itens) */
     /* variaveis de CharacterState */
     bool hit_yet, hit_anything, hit_fighter, character_state_was_blocked, hit_cancelled, started_during_combo, feinting, land_cancelled;
-    bool started_in_air, entered_in_air, hit_hit_cancellable_projectile, initiative_startup_reduction, is_brace;
+    bool feinted_last, started_in_air, entered_in_air, hit_hit_cancellable_projectile, initiative_startup_reduction, is_brace;
     /* ParryState / NewParry */
     struct { bool parry_active, perfect, parried, punishable, parried_last, started_in_combo; int parry_type, initial_parry_type, parry_tick, extra_iasa; } pr;
     /* CharacterHurtState / HurtGrounded / HurtAerial */
