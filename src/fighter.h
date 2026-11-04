@@ -3,6 +3,7 @@
 #ifndef FIGHTER_H
 #define FIGHTER_H
 #include "engine.h"
+#include "chardata.h"
 
 #define MAX_HEALTH_DEFAULT 1500
 #define MAX_STALES 15
@@ -107,7 +108,7 @@ struct fighter_s {
     int queued_action; void *queued_data;
     bool has_extra, ex_has_di, ex_has_reverse, ex_reverse; fxv ex_di; int ex_feint;           /* "extra" da acao: DI, reverse, feint (-1: ausente) */
     bool buffered_valid; int buffered_action; void *buffered_data; bool buffered_has_extra, b_ex_has_di, b_ex_has_reverse, b_ex_reverse; fxv b_ex_di; int b_ex_feint;
-    const struct fighter_vt_s *vt; const char *const *names; int nnames;
+    const struct fighter_vt_s *vt; const char *const *names; int nnames; const chardata_t *cd;
     /* DI e knockback */
     fxv current_di, current_nudge, last_vel; fx nudge_amount, min_di_scaling, max_di_scaling, di_modifier, knockback_taken_modifier, damage_taken_modifier;
     fx global_damage_modifier, global_hitstun_modifier, global_hitstop_modifier, parry_knockback_divisor, parry_combo_scaling, burst_parry_combo_scaling;
@@ -200,5 +201,18 @@ void fighter_launched_by(fighter_t *f, hitdata_t *h);
 void fighter_thrown_by(fighter_t *f, hitdata_t *h);
 void fighter_increment_opponent_combo(fighter_t *f, const hitdata_t *h);
 void fighter_refresh_feints(fighter_t *f);
+void fighter_set_facing(fighter_t *f, int facing, bool force);
+void fighter_set_anim(fighter_t *f, state_t *s, const char *name);
+void fighter_release_opponent(fighter_t *f);
+void fighter_start_sadness_immunity(fighter_t *f);
+fx   fighter_hitbox_x_dir(const fighter_t *f, const hitdata_t *h);
+/* camada CharacterState */
+sid  cs_enter_shared(obj_t *o, state_t *s);
+sid  cs_tick_shared(obj_t *o, state_t *s);
+sid  cs_tick_after(obj_t *o, state_t *s);
+void cs_exit_shared(obj_t *o, state_t *s);
+sid  cs_frame_shared(obj_t *o, state_t *s, int tick);
+bool cs_can_interrupt(const state_t *s);
+void cs_on_hit_something(fighter_t *host, state_t *s, obj_t *victim, const hitbox_t *hb);
 
 #endif

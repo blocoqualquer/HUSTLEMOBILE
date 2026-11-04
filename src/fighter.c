@@ -583,9 +583,9 @@ void fighter_tick(fighter_t *f)
 
 void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstates, sid start, int id)
 {
-    const struct fighter_vt_s *vt = f->vt; const char *const *names = f->names; int nnames = f->nnames;
+    const struct fighter_vt_s *vt = f->vt; const char *const *names = f->names; int nnames = f->nnames; const chardata_t *cd = f->cd;
     memset(&f->hp, 0, sizeof(*f) - offsetof(fighter_t, hp));
-    f->vt = vt; f->names = names; f->nnames = nnames;
+    f->vt = vt; f->names = names; f->nnames = nnames; f->cd = cd;
     f->st_hurt_grounded = fighter_name_id(f, "HurtGrounded"); f->st_hurt_aerial = fighter_name_id(f, "HurtAerial");
     f->st_knockdown = fighter_name_id(f, "Knockdown"); f->st_hard_knockdown = fighter_name_id(f, "HardKnockdown");
     f->st_hurt_dizzy = fighter_name_id(f, "HurtDizzy"); f->st_parry_high = fighter_name_id(f, "ParryHigh");
@@ -615,3 +615,38 @@ void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstate
 
 void fighter_refresh_feints(fighter_t *f) { f->feints = f->num_feints; }
 __attribute__((weak)) void cs_enable_interrupt(fighter_t *f, state_t *s, bool c, bool r) { (void)r; fighter_enable_interrupt(f, s, c); }
+
+void fighter_set_facing(fighter_t *f, int facing, bool force)
+{
+    if (f->reverse_state && !force) facing = -facing;
+    if (facing != 1 && facing != -1) facing = 1;
+    f->o.chara.facing = facing;
+    obj_update_boxes(&f->o);
+}
+
+void fighter_set_anim(fighter_t *f, state_t *s, const char *name)
+{
+    if (!f->cd) return;
+    for (int i = 0; i < f->cd->nanims; i++)
+        if (strcmp(f->cd->anims[i].name, name) == 0) { s->anim = i; return; }
+}
+
+void fighter_release_opponent(fighter_t *f)
+{
+    fighter_t *op = f->opponent;
+    if (op->o.sm.cur->id == op->st_grabbed) sm_change_state(&op->o, op->st_fall, NULL, true, true);
+}
+
+void fighter_start_sadness_immunity(fighter_t *f) { f->sadness_immunity_ticks = SADNESS_IMMUNITY_TICKS; }
+
+fx fighter_hitbox_x_dir(const fighter_t *f, const hitdata_t *h)
+{
+    fx x = h->dir_x * h->box_facing;
+    if (h->reversible) {
+        int dir = (h->pos_x > phys_x(&f->o.chara)) - (h->pos_x < phys_x(&f->o.chara));
+        int m = 1;
+        if ((dir == -1 && h->box_facing < 0) || (dir == 1 && h->box_facing > 0)) m = -1;
+        x *= m;
+    }
+    return x;
+}

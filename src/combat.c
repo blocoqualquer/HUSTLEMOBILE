@@ -89,7 +89,7 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     o->hitstun_ticks = real_hitstun(h);
     o->victim_hitlag = real_victim_hitlag(h);
     o->facing_int = host->chara.facing;
-    o->box_facing = h->box.facing >= 0 ? 1 : -1;
+    o->box_facing = host->chara.facing >= 0 ? 1 : -1;   /* HitboxData.facing = facing do host */
     o->id = host->id;
     o->knockback = real_knockback(h);
     o->damage = h->damage;
@@ -122,7 +122,7 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     o->hits_vs_standing = d->hits_vs_standing; o->combo_scaling_amount = d->combo_scaling_amount;
     o->ground_bounce_knockback_modifier = d->ground_bounce_knockback_modifier;
     o->hits_projectiles = d->hits_projectiles; o->cancellable = h->cancellable;
-    o->followup_state = -1;
+    o->followup_state = d->followup_state;
     o->guard_break = d->guard_break; o->parriable = d->parriable; o->block_punishable = d->block_punishable;
     o->looping = d->looping; o->ignore_projectile_armor = d->ignore_projectile_armor; o->block_cancel_allowed = d->block_cancel_allowed;
     o->allowed_to_hit_own_team = d->allowed_to_hit_own_team; o->block_pushback_reversible = d->block_pushback_reversible;
@@ -505,5 +505,6 @@ void eng_hitbox_hit(hitbox_t *hb, obj_t *victim)
         phys_add_pushback(&host->chara, pb);
         phys_add_pushback(&victim->chara, pb);
         if (vf->opponent && &vf->opponent->o != host) phys_add_pushback(&vf->opponent->o.chara, pb);
+        if (host->is_fighter) cs_on_hit_something(host->fighter, host->sm.cur, victim, hb);
     }
 }

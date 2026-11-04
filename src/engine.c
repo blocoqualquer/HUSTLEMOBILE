@@ -19,6 +19,13 @@ sid sm_state_by_name(const obj_t *o, const char *name)
     return SID_NONE;
 }
 
+/* camada CharacterState (states_common.c); ausente nos testes do motor puro */
+extern sid  cs_enter_shared(obj_t *, state_t *) __attribute__((weak));
+extern sid  cs_tick_shared(obj_t *, state_t *) __attribute__((weak));
+extern sid  cs_tick_after(obj_t *, state_t *) __attribute__((weak));
+extern void cs_exit_shared(obj_t *, state_t *) __attribute__((weak));
+extern sid  cs_frame_shared(obj_t *, state_t *, int) __attribute__((weak));
+
 state_t *obj_prev_state(obj_t *o) { return o->sm.nstack > 1 ? &o->sm.states[o->sm.stack[o->sm.nstack - 2]] : NULL; }
 
 /* StateInterface.queue_state_change / StateMachine.queue_state: so enfileira se o estado de origem ainda esta ativo */
@@ -36,7 +43,9 @@ void sm_change_state(obj_t *o, sid next, void *data, bool enter, bool exit)
     if (m->cur) {
         state_t *c = m->cur;
         if (exit) {
-            if (c->d.vt && c->d.vt->exit_shared) c->d.vt->exit_shared(o, c); else obj_state_exit_shared(o, c);
+            if (c->d.vt && c->d.vt->exit_shared) c->d.vt->exit_shared(o, c);
+            else if (c->d.cs && cs_exit_shared) cs_exit_shared(o, c);
+            else obj_state_exit_shared(o, c);
             if (c->d.vt && c->d.vt->exit) c->d.vt->exit(o, c);
             eng_deactivate_hitboxes(o);              /* BaseObj._on_state_exited */
         }
@@ -50,7 +59,7 @@ void sm_change_state(obj_t *o, sid next, void *data, bool enter, bool exit)
     n->data = data;
     if (enter) {
         const state_vt_t *vt = n->d.vt;
-        sid r = (vt && vt->enter_shared) ? vt->enter_shared(o, n) : obj_state_enter_shared(o, n);
+        sid r = (vt && vt->enter_shared) ? vt->enter_shared(o, n) : (n->d.cs && cs_enter_shared) ? cs_enter_shared(o, n) : obj_state_enter_shared(o, n);
         if (r != SID_NONE) { sm_change_state(o, r, NULL, true, true); return; }
         if (vt && vt->enter) { r = vt->enter(o, n); if (r != SID_NONE) { sm_change_state(o, r, NULL, true, true); return; } }
     }
@@ -62,9 +71,10 @@ void sm_tick(obj_t *o)
     if (m->has_queued) sm_change_state(o, m->queued, m->queued_data, true, true);
     state_t *s = m->cur; const state_vt_t *vt = s->d.vt;
     if (vt && vt->tick_before) vt->tick_before(o, s);
-    sid r = (vt && vt->tick_shared) ? vt->tick_shared(o, s) : obj_state_tick_shared(o, s);
+    sid r = (vt && vt->tick_shared) ? vt->tick_shared(o, s) : (s->d.cs && cs_tick_shared) ? cs_tick_shared(o, s) : obj_state_tick_shared(o, s);
     if (r == SID_NONE && vt && vt->tick) r = vt->tick(o, s);
     if (r == SID_NONE && vt && vt->tick_after) r = vt->tick_after(o, s);
+    else if (r == SID_NONE && s->d.cs && cs_tick_after && !(vt && vt->tick_after)) r = cs_tick_after(o, s);
     if (r != SID_NONE) sm_queue_state(o, r, NULL);
 }
 
@@ -145,6 +155,7 @@ sid obj_state_tick_shared(obj_t *o, state_t *s)
         if (t > s->max_tick) s->max_tick = t;
         const state_vt_t *vt = d->vt;
         if (vt && vt->frame_shared) { sid r = vt->frame_shared(o, s, t); if (r != SID_NONE) return r; }
+        else if (d->cs && cs_frame_shared) { sid r = cs_frame_shared(o, s, t); if (r != SID_NONE) return r; }
         if (vt && vt->frame) { sid r = vt->frame(o, s, t); if (r != SID_NONE) return r; }
     }
     if (d->apply_fric) phys_fric(c);
@@ -170,7 +181,10 @@ void obj_init(obj_t *o, state_t *states, int nstates, sid start)
         const state_def_t *d = states[i].def;   /* preenchido pelo chamador antes */
         memset(&states[i], 0, sizeof states[i]);
         states[i].def = d; states[i].id = i; states[i].d = *d; states[i].anim = d->sprite_anim;
-        if (d->cs) { states[i].cs = *d->cs; states[i].d.cs = &states[i].cs; }
+        if (d->cs) {
+            states[i].cs = *d->cs; states[i].d.cs = &states[i].cs;
+            if (states[i].cs.iasa_at < 0) states[i].cs.iasa_at += d->anim_length;         /* CharacterState.init */
+        }
         states[i].current_tick = states[i].current_real_tick = states[i].start_tick = -1;
         states[i].exit_tick = states[i].max_tick = states[i].max_tick_shared = -1;
         states[i].last_facing = 1; states[i].cur_hurt = -1;
