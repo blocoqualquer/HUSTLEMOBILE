@@ -610,6 +610,13 @@ void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstate
     f->stage_width = 1000;
     f->lowest_tick = 0;
     f->initiative = true;
+    if (f->cd) {                                   /* parametros fisicos e caixas do personagem */
+        phys_init(&f->o.chara);
+        f->o.chara.grav = f->cd->gravity; f->o.chara.gfric = f->cd->ground_friction; f->o.chara.afric = f->cd->air_friction;
+        f->o.chara.max_gspeed = f->cd->max_ground_speed; f->o.chara.max_aspeed = f->cd->max_air_speed; f->o.chara.max_fall = f->cd->max_fall_speed;
+        f->o.hurtbox = f->o.def_hurtbox = f->cd->hurtbox; f->o.collision_box = f->cd->collision_box;
+        f->o.gravity_enabled = true;
+    }
     obj_init(&f->o, states, nstates, start);
 }
 
