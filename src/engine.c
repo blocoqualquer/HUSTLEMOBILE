@@ -19,7 +19,7 @@ sid sm_state_by_name(const obj_t *o, const char *name)
     return SID_NONE;
 }
 
-static state_t *prev_state(obj_t *o) { return o->sm.nstack > 1 ? &o->sm.states[o->sm.stack[o->sm.nstack - 2]] : NULL; }
+state_t *obj_prev_state(obj_t *o) { return o->sm.nstack > 1 ? &o->sm.states[o->sm.stack[o->sm.nstack - 2]] : NULL; }
 
 /* StateInterface.queue_state_change / StateMachine.queue_state: so enfileira se o estado de origem ainda esta ativo */
 void sm_queue_state(obj_t *o, sid next, void *data)
@@ -73,7 +73,7 @@ sid obj_state_enter_shared(obj_t *o, state_t *s)
 {
     const state_def_t *d = &s->d;
     s->same_as_last_state = false;
-    state_t *prev = prev_state(o);
+    state_t *prev = obj_prev_state(o);
     if (prev) {
         if (d->force_same_direction_as_previous_state) o->chara.facing = prev->last_facing;
         if (prev != s) s->exit_tick = -1; else s->same_as_last_state = true;

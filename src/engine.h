@@ -154,6 +154,7 @@ void obj_init(obj_t *o, state_t *states, int nstates, sid start);
 void obj_tick(obj_t *o);
 void obj_state_tick(obj_t *o);          /* BaseObj.state_tick */
 void obj_change_state(obj_t *o, sid st, void *data);
+state_t *obj_prev_state(obj_t *o);
 void obj_emit(obj_t *o, ev_type t, sid st);
 void obj_update_boxes(obj_t *o);
 void state_setup_runtime(obj_t *o, state_t *s);   /* aloca hitboxes/limb do estado (chamar para cada estado antes de obj_init) */

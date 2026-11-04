@@ -583,7 +583,14 @@ void fighter_tick(fighter_t *f)
 
 void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstates, sid start, int id)
 {
+    const struct fighter_vt_s *vt = f->vt; const char *const *names = f->names; int nnames = f->nnames;
     memset(&f->hp, 0, sizeof(*f) - offsetof(fighter_t, hp));
+    f->vt = vt; f->names = names; f->nnames = nnames;
+    f->st_hurt_grounded = fighter_name_id(f, "HurtGrounded"); f->st_hurt_aerial = fighter_name_id(f, "HurtAerial");
+    f->st_knockdown = fighter_name_id(f, "Knockdown"); f->st_hard_knockdown = fighter_name_id(f, "HardKnockdown");
+    f->st_hurt_dizzy = fighter_name_id(f, "HurtDizzy"); f->st_parry_high = fighter_name_id(f, "ParryHigh");
+    f->st_parry_auto = fighter_name_id(f, "ParryAuto"); f->st_grabbed = fighter_name_id(f, "Grabbed");
+    f->st_wait = fighter_name_id(f, "Wait"); f->st_fall = fighter_name_id(f, "Fall");
     f->opponent = opponent;
     f->o.id = id;
     f->o.is_fighter = true;
@@ -605,3 +612,6 @@ void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstate
     f->initiative = true;
     obj_init(&f->o, states, nstates, start);
 }
+
+void fighter_refresh_feints(fighter_t *f) { f->feints = f->num_feints; }
+__attribute__((weak)) void cs_enable_interrupt(fighter_t *f, state_t *s, bool c, bool r) { (void)r; fighter_enable_interrupt(f, s, c); }

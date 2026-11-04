@@ -119,7 +119,7 @@ struct fighter_s {
     int throw_pos_x, throw_pos_y;
     /* cache de nomes de estado */
     sid st_wait, st_fall, st_parry_high, st_parry_air, st_dash_forward, st_block_high, st_parry_low, st_parry_super, st_dash_backward, st_grabbed,
-        st_force_explosion, st_parry_auto, st_throw_tech;
+        st_force_explosion, st_parry_auto, st_throw_tech, st_hurt_grounded, st_hurt_aerial, st_knockdown, st_hard_knockdown, st_hurt_dizzy;
     int stance;
 };
 
@@ -181,5 +181,24 @@ void fighter_update_facing(fighter_t *f);
 void fighter_update_advantage(fighter_t *f);
 static inline fighter_t *obj_fighter(obj_t *o) { return o->fighter; }
 static inline fighter_t *fighter_of(obj_t *o) { return (fighter_t *)o; }   /* valido quando o->is_fighter */
+
+
+/* ---- camada de estados (states_common.c / parry.c) usada pelo combate ---- */
+enum { PH_HIGH, PH_LOW, PH_BOTH };
+bool parry_can_parry_hitbox(const fighter_t *f, const state_t *s, const hitdata_t *h);
+bool parry_matches_height(const state_t *s, const hitdata_t *h, int parry_type /* -1: do estado */);
+bool parry_whiffed_block(const fighter_t *f);
+void parry_parry(fighter_t *f, state_t *s, bool perfect);
+void cs_enable_interrupt(fighter_t *f, state_t *s, bool check_opponent, bool remove_hitlag);
+bool fighter_can_parry_hitbox(const fighter_t *f, const hitdata_t *h);
+bool fighter_can_counter_hitbox(const fighter_t *f, const hitdata_t *h);
+bool fighter_is_bracing(const fighter_t *f);
+bool fighter_is_otg(const fighter_t *f);
+void fighter_hit_by_dispatch(fighter_t *f, hitdata_t *h, bool force_hit);
+void fighter_block_hitbox(fighter_t *f, hitdata_t *h, bool force_parry, bool force_block, bool ignore_guard_break, bool autoblock_armor);
+void fighter_launched_by(fighter_t *f, hitdata_t *h);
+void fighter_thrown_by(fighter_t *f, hitdata_t *h);
+void fighter_increment_opponent_combo(fighter_t *f, const hitdata_t *h);
+void fighter_refresh_feints(fighter_t *f);
 
 #endif
