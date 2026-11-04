@@ -148,7 +148,7 @@ bool fighter_can_counter_hitbox(const fighter_t *f, const hitdata_t *h)
 {
     if (!fighter_is_bracing(f)) return false;
     const state_t *s = f->o.sm.cur;
-    switch (s->ustate[1] /* counter_type: 0 High, 1 Low, 2 Grab */) {
+    switch (xp_int(&s->d, "counter_type", 0) /* 0 High, 1 Low, 2 Grab */) {
     case 2: return h->throw_;
     case 0: return !h->throw_ && (h->hit_height == HEIGHT_HIGH || h->hit_height == HEIGHT_MID);
     case 1: return !h->throw_ && h->hit_height == HEIGHT_LOW;

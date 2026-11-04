@@ -20,9 +20,10 @@ sid cs_frame_shared(obj_t *o, state_t *s, int tick)
 {
     if (tick != 0) return SID_NONE;
     fighter_t *f = F(o);
-    const charstate_def_t *c = &s->cs;
-    int levels = c->supers_used == -1 ? c->super_level : c->supers_used;
-    if (c->scale_combo_meter && levels > 0) f->combo_supers++;
+    if (!xp_find(&s->d, "super_level")) return SID_NONE;       /* so SuperMove gasta barra */
+    int sl = xp_int(&s->d, "super_level", 1), su = xp_int(&s->d, "supers_used", -1);
+    int levels = su == -1 ? sl : su;
+    if (xp_int(&s->d, "scale_combo_meter", 1) && levels > 0) f->combo_supers++;
     /* efeito de super/EX (congelamento global): apresentacao, tratado pelo renderer via evento */
     for (int i = 0; i < levels; i++) fighter_use_super_bar(f);
     return SID_NONE;

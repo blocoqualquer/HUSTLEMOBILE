@@ -3,6 +3,7 @@
 
 void hitbox_init(hitbox_t *h, const hitbox_def_t *d, obj_t *host)
 {
+    h->throw_state = d->throw_state;
     h->def = d; h->host = host;
     h->box.x = d->x; h->box.y = d->y; h->box.w = d->w < 0 ? -d->w : d->w; h->box.h = d->h < 0 ? -d->h : d->h; h->box.facing = 1;
     h->damage = d->damage; h->hitstun_ticks = d->hitstun_ticks; h->priority = d->priority;

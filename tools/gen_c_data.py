@@ -54,7 +54,7 @@ def index_classes(root):
                     if m: CLASSES[m.group(1)] = os.path.relpath(p, root).replace('\\', '/'); break
 
 BASE_SCRIPTS = ('CharState.gd', 'ObjectState.gd')
-def script_params(root, script, props):
+def script_params(root, script, props, sidof=lambda n: -1):
     """'export var' dos scripts do estado (abaixo de CharState) -> entradas {nome, int, fx}."""
     out = []
     if not root: return out
@@ -69,7 +69,9 @@ def script_params(root, script, props):
             elif isinstance(v, int): iv, fv = v, v << 16
             elif isinstance(v, (float, str)):
                 try: fv = parse(str(v)); iv = int(float(v))
-                except Exception: continue
+                except Exception:
+                    if isinstance(v, str) and sidof(v) >= 0: iv, fv = sidof(v), 0          # nome de estado -> sid
+                    else: continue
             else: continue
             out.append('{"%s", %d, FX_RAW(%d)}' % (m.group(1), iv, fv))
     return out
@@ -241,7 +243,7 @@ def main(jpath, cid, out, root=None):
             pl = p.get('particle_location') or {}
             a = pl.get('a', [0, 0]) if isinstance(pl, dict) else [0, 0]
             f += [('particle_x', str(int(a[0]) if len(a) > 0 else 0)), ('particle_y', str(int(a[1]) if len(a) > 1 else 0))]
-        xp = script_params(root, nd.get('script'), p)
+        xp = script_params(root, nd.get('script'), p, sidof)
         if xp:
             L.insert(L.index('static const state_def_t states_%s[] = {' % cid), 'static const xparam_t xp_%s_%s[] = {%s};' % (cid, cn, ', '.join(xp)))
             f += [('xp', 'xp_%s_%s' % (cid, cn)), ('nxp', str(len(xp)))]

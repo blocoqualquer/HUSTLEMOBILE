@@ -97,7 +97,7 @@ struct fighter_s {
     /* turno e estado */
     int turn_frames, blockstun_ticks, blocked_hitbox_plus_frames, lowest_tick, hitlag_applied, wakeup_throw_immunity_ticks, last_parry_tick;
     int super_meter_used_recently, super_meter_grace_ticks, buffered_global_hitlag;
-    bool initiative, initiative_effect, busy_interrupt, was_my_turn, dummy_interruptable, colliding_with_opponent, clipping_wall;
+    bool initiative, initiative_effect, busy_interrupt, was_my_turn, dummy_interruptable, colliding_with_opponent, clipping_wall, will_forfeit;
     bool parried, got_parried, got_blocked, parried_last_state, blocked_last_hit, blocked_last_turn, last_turn_block, in_blockstring;
     bool feinting, feinted_last, feint_parriable, reverse_state, touching_wall, can_nudge, hit_during_armor, has_hyper_armor, has_projectile_armor;
     bool projectile_hit_cancelling, counterhit_this_turn, guard_broken_this_turn, gained_whiff_meter, block_used_air_movement;
@@ -202,7 +202,7 @@ void fighter_thrown_by(fighter_t *f, hitdata_t *h);
 void fighter_increment_opponent_combo(fighter_t *f, const hitdata_t *h);
 void fighter_refresh_feints(fighter_t *f);
 /* dados de acao com direcao (Jump/Dash/DashStartup): x,y em -100..100 */
-typedef struct { int x, y; bool auto_correct, charged, has_charged; } xy_data_t;
+typedef struct { int x, y; bool auto_correct, charged, has_charged, no_invuln, dash, jump; } xy_data_t;
 void fighter_set_facing(fighter_t *f, int facing, bool force);
 void fighter_set_anim(fighter_t *f, state_t *s, const char *name);
 void fighter_release_opponent(fighter_t *f);

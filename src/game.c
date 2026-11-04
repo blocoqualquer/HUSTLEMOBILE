@@ -194,7 +194,7 @@ static void apply_hitboxes(game_t *g, fighter_t *px1, fighter_t *px2)
             if (!hittable) can_hit = false;
             if (can_hit) {
                 eng_hitbox_hit(tb, &victim->o);
-                if (tb->def->throw_state >= 0) sm_queue_state(&thrower->o, tb->def->throw_state, NULL);
+                if (tb->throw_state >= 0) sm_queue_state(&thrower->o, tb->throw_state, NULL);
                 hittable = false;
             }
         }

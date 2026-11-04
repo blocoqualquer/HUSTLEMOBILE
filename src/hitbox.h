@@ -68,6 +68,7 @@ typedef struct hitbox_s {
     int hit_objects[HB_MAX_HIT_OBJECTS]; int nhit;       /* uid dos objetos ja atingidos */
     struct hitbox_s **group; int ngroup;                 /* hitboxes do mesmo grupo no estado (inclui este) */
     obj_t *host;
+    int throw_state;                  /* copia mutavel (Grab troca o estado de arremesso em runtime) */
 } hitbox_t;
 
 void hitbox_init(hitbox_t *h, const hitbox_def_t *d, obj_t *host);
