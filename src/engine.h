@@ -55,7 +55,9 @@ typedef struct {
     const char *title;
 } charstate_def_t;
 
-enum { KIND_NORMAL, KIND_HURT_GROUNDED, KIND_HURT_AERIAL, KIND_PARRY_OLD, KIND_PARRY_NEW, KIND_COUNTER, KIND_THROW };
+typedef struct { const char *k; int i; fx f; } xparam_t;   /* 'export var' do script do estado (gerado) */
+
+enum { KIND_NORMAL, KIND_HURT_GROUNDED, KIND_HURT_AERIAL, KIND_PARRY_OLD, KIND_PARRY_NEW, KIND_COUNTER, KIND_THROW, KIND_HURT_MISC };
 
 /* dados constantes do estado (exports de ObjectState, ja convertidos para fx) */
 typedef struct {
@@ -84,6 +86,7 @@ typedef struct {
     int earliest_hitbox;
     const charstate_def_t *cs;                                          /* NULL para estados que nao sao CharacterState */
     int name_id;                                                        /* id internado do nome do estado */
+    const xparam_t *xp; int nxp;                                        /* parametros do script do estado */
 } state_def_t;
 
 struct state_s {
@@ -97,7 +100,8 @@ struct state_s {
     int current_tick, current_real_tick, start_tick, last_facing, exit_tick;
     bool same_as_last_state, was_blocked; int number_of_hits_blocked;
     int max_tick, max_tick_shared;
-    int ustate[8];                    /* variaveis privadas do script do estado (membros 'var' do .gd) */
+    int ustate[8]; fx ufx[4];       /* variaveis privadas do script do estado (int/fx) */
+    int16_t ifr[4];                 /* copia mutavel de interrupt_frames */
     hitbox_t *hbr;                    /* hitboxes em runtime (def->nhb itens) */
     /* variaveis de CharacterState */
     bool hit_yet, hit_anything, hit_fighter, character_state_was_blocked, hit_cancelled, started_during_combo, feinting, land_cancelled;
@@ -164,5 +168,16 @@ int  obj_active_hitboxes(obj_t *o, hitbox_t **out, int max);   /* ativos e habil
 bool hurtbox_hit_check(obj_t *attacker_unused, hitbox_t *hb, obj_t *victim);  /* hitbox sobrepoe hurtbox ou hurtbox de membro */
 static inline state_t *obj_state(obj_t *o) { return o->sm.cur; }
 static inline int obj_facing(const obj_t *o) { return o->chara.facing; }
+
+#include <string.h>
+/* is_hurt_state do original: Hurt*, WallSlam, Grabbed, Frozen */
+static inline bool state_is_hurt(const state_t *s) { return s->d.kind == KIND_HURT_GROUNDED || s->d.kind == KIND_HURT_AERIAL || s->d.kind == KIND_HURT_MISC; }
+static inline const xparam_t *xp_find(const state_def_t *d, const char *k)
+{
+    for (int i = 0; i < d->nxp; i++) if (strcmp(d->xp[i].k, k) == 0) return &d->xp[i];
+    return 0;
+}
+static inline int xp_int(const state_def_t *d, const char *k, int def) { const xparam_t *x = xp_find(d, k); return x ? x->i : def; }
+static inline fx  xp_fx(const state_def_t *d, const char *k, fx def)   { const xparam_t *x = xp_find(d, k); return x ? x->f : def; }
 
 #endif

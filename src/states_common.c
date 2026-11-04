@@ -12,7 +12,7 @@ enum { AT_MOVEMENT, AT_ATTACK, AT_SPECIAL, AT_SUPER, AT_DEFENSE, AT_HURT };
 enum { AIR_GROUNDED, AIR_AERIAL, AIR_BOTH };
 enum { BI_NORMAL, BI_HURT, BI_NONE };
 
-static bool is_hurt_kind(const state_t *s) { return s->d.kind == KIND_HURT_GROUNDED || s->d.kind == KIND_HURT_AERIAL; }
+static bool is_hurt_kind(const state_t *s) { return state_is_hurt(s); }
 
 /* ---------- CharacterState ---------- */
 

@@ -37,7 +37,7 @@ static int attacks_prio(const state_t *a, const state_t *b)
     return 0;
 }
 
-static bool is_hurt(const state_t *s) { return s->d.kind == KIND_HURT_GROUNDED || s->d.kind == KIND_HURT_AERIAL; }
+static bool is_hurt(const state_t *s) { return state_is_hurt(s); }
 
 static int port_priority(game_t *g)
 {

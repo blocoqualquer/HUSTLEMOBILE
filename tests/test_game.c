@@ -48,6 +48,8 @@ int main(void)
     assert(maxcombo >= 1);
     assert(A.super_meter > 0 || A.supers_available > 0);
     assert(B.hp == hp_after_hit || B.hp < hp_after_hit);
+    assert(A.o.sm.cur->id == fighter_name_id(&A, "Wait"));
+    assert(B.o.sm.cur->id == fighter_name_id(&B, "Wait") || B.o.sm.cur->id == fighter_name_id(&B, "Knockdown"));
     puts("game ok");
     return 0;
 }

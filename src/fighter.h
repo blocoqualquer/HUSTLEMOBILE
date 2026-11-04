@@ -201,6 +201,8 @@ void fighter_launched_by(fighter_t *f, hitdata_t *h);
 void fighter_thrown_by(fighter_t *f, hitdata_t *h);
 void fighter_increment_opponent_combo(fighter_t *f, const hitdata_t *h);
 void fighter_refresh_feints(fighter_t *f);
+/* dados de acao com direcao (Jump/Dash/DashStartup): x,y em -100..100 */
+typedef struct { int x, y; bool auto_correct, charged, has_charged; } xy_data_t;
 void fighter_set_facing(fighter_t *f, int facing, bool force);
 void fighter_set_anim(fighter_t *f, state_t *s, const char *name);
 void fighter_release_opponent(fighter_t *f);

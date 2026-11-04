@@ -333,8 +333,8 @@ bool fighter_is_in_hurt_state(const fighter_t *f, bool count_all)
 {
     const state_t *s = f->o.sm.cur;
     if (!s) return false;
-    bool hurt = s->d.kind == KIND_HURT_GROUNDED || s->d.kind == KIND_HURT_AERIAL;
-    if (count_all) return hurt || (s->d.cs && s->d.cs->busy_interrupt_type == 2 /* Hurt */);
+    bool hurt = state_is_hurt(s);
+    if (count_all) return hurt || (s->d.cs && s->d.cs->busy_interrupt_type == 1 /* Hurt */);
     return hurt;
 }
 
@@ -532,8 +532,8 @@ void fighter_tick(fighter_t *f)
         if (o->chara.grounded) { f->used_air_dodge = false; fighter_refresh_air_movements(f); }
         o->current_tick++; o->game_tick++;
         state_t *os = f->opponent->o.sm.cur;
-        bool me_hurt = s->d.kind == KIND_HURT_GROUNDED || s->d.kind == KIND_HURT_AERIAL;
-        bool op_hurt = os->d.kind == KIND_HURT_GROUNDED || os->d.kind == KIND_HURT_AERIAL;
+        bool me_hurt = state_is_hurt(s);
+        bool op_hurt = state_is_hurt(os);
         if (!me_hurt && !op_hurt) {
             int xv = (int)fx_to_int(o->chara.vx);              /* get_x_vel_int: parte inteira */
             if (isign(xv) == isign(phys_x(&f->opponent->o.chara) - phys_x(&o->chara))) {

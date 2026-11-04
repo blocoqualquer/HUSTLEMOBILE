@@ -53,6 +53,27 @@ def index_classes(root):
                     m = re.match(r'\s*class_name\s+(\w+)', ln)
                     if m: CLASSES[m.group(1)] = os.path.relpath(p, root).replace('\\', '/'); break
 
+BASE_SCRIPTS = ('CharState.gd', 'ObjectState.gd')
+def script_params(root, script, props):
+    """'export var' dos scripts do estado (abaixo de CharState) -> entradas {nome, int, fx}."""
+    out = []
+    if not root: return out
+    seen = set()
+    for sc in script_chain(root, script):
+        if sc.startswith('class:') or os.path.basename(sc) in BASE_SCRIPTS: continue
+        for ln in open(os.path.join(root, sc.replace('res://', '')), encoding='utf-8', errors='replace'):
+            m = re.match(r'\s*export(?:\(.*?\))?\s+var\s+(\w+)', ln)
+            if not m or m.group(1) in seen or m.group(1) not in props: continue
+            v = props[m.group(1)]; seen.add(m.group(1))
+            if isinstance(v, bool): iv, fv = int(v), (1 << 16) * int(v)
+            elif isinstance(v, int): iv, fv = v, v << 16
+            elif isinstance(v, (float, str)):
+                try: fv = parse(str(v)); iv = int(float(v))
+                except Exception: continue
+            else: continue
+            out.append('{"%s", %d, FX_RAW(%d)}' % (m.group(1), iv, fv))
+    return out
+
 def kind_of(root, script):
     if not script: return 0
     names = [os.path.basename(x).replace('.gd', '') for x in script_chain(root, script) if not x.startswith('class:')]
@@ -62,6 +83,7 @@ def kind_of(root, script):
     if 'Parry' in names: return 3
     if 'CounterAttack' in names: return 5
     if 'ThrowState' in names: return 6
+    if 'WallSlam' in names or 'Grabbed' in names or 'FrozenState' in names or 'Frozen' in names: return 7
     return 0
 
 def main(jpath, cid, out, root=None):
@@ -219,6 +241,10 @@ def main(jpath, cid, out, root=None):
             pl = p.get('particle_location') or {}
             a = pl.get('a', [0, 0]) if isinstance(pl, dict) else [0, 0]
             f += [('particle_x', str(int(a[0]) if len(a) > 0 else 0)), ('particle_y', str(int(a[1]) if len(a) > 1 else 0))]
+        xp = script_params(root, nd.get('script'), p)
+        if xp:
+            L.insert(L.index('static const state_def_t states_%s[] = {' % cid), 'static const xparam_t xp_%s_%s[] = {%s};' % (cid, cn, ', '.join(xp)))
+            f += [('xp', 'xp_%s_%s' % (cid, cn)), ('nxp', str(len(xp)))]
         f += [('name_id', str(n))]
         L.append(' {' + ', '.join('.%s = %s' % kv for kv in f) + '},')
     L.append('};')
