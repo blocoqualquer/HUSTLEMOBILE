@@ -159,7 +159,8 @@ void fighter_use_super_meter(fighter_t *f, int amount);
 void fighter_drain_super_meter(fighter_t *f, int amount);
 void fighter_use_air_movement(fighter_t *f);
 fxv  obj_xy_to_dir(fx x, fx y, fx scale);
-int  fighter_resolve_continue(fighter_t *f);   /* "Continue": hold restarts / fallback (states_common) */
+int  fighter_resolve_continue(fighter_t *f);
+int  state_hold_restart(fighter_t *f, state_t *s);   /* "Continue": hold restarts / fallback (states_common) */
 /* combate */
 void fighter_hit_data(hitdata_t *out, const hitbox_t *h);
 void fighter_hit_by(fighter_t *f, hitdata_t *hit, bool force_hit);

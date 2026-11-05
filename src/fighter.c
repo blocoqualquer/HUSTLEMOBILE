@@ -435,8 +435,6 @@ static void process_extra(fighter_t *f)
 
 /* ---------- tick ---------- */
 
-__attribute__((weak)) int fighter_resolve_continue(fighter_t *f) { return f->queued_action; }
-
 void fighter_tick_before(fighter_t *f)
 {
     obj_t *o = &f->o;
@@ -656,4 +654,37 @@ fx fighter_hitbox_x_dir(const fighter_t *f, const hitdata_t *h)
         x *= m;
     }
     return x;
+}
+
+/* ---------- "Continue": mantem/reinicia o estado enquanto o jogador segura (BaseChar.tick_before) ---------- */
+
+static const char *const HOLD_RESTARTS[] = { "Wait", "Fall", "DashForward", "ParryHigh", "BlockHigh", "ParryLow", "ParryAir", NULL };
+
+int fighter_resolve_continue(fighter_t *f)
+{
+    state_t *s = f->o.sm.cur;
+    const char *cname = s->d.name;
+    bool opp_turn = s->d.cs && s->cs.interruptible_on_opponent_turn;
+    int action = ACTION_CONTINUE;
+    if (f->vt && f->vt->process_continue && f->vt->process_continue(f)) return f->queued_action;
+    int hr = state_hold_restart(f, s);
+    if (hr >= 0 && opp_turn) { action = hr; f->queued_data = s->data; }
+    else {
+        bool restart = false;
+        for (int i = 0; HOLD_RESTARTS[i]; i++) if (strcmp(cname, HOLD_RESTARTS[i]) == 0) restart = true;
+        if (restart && opp_turn) { action = s->id; f->queued_data = s->data; }
+        else if (opp_turn && strcmp(cname, "ParrySuper") == 0) action = fighter_name_id(f, "ParryHigh");
+        else if (opp_turn && strcmp(cname, "DashBackward") == 0) action = fighter_name_id(f, "Wait");
+        else if (s->d.cs && s->cs.next_state_on_hold && !f->feinting &&
+                 (f->was_my_turn || (opp_turn && s->cs.next_state_on_hold_on_opponent_turn) || (s->hit_fighter && f->combo_count == 0)))
+            action = s->d.fallback_state;
+    }
+    return action;
+}
+
+/* get_hold_restart(): Dash aereo -> AirDashForward/Fall; padrao = hold_restart exportado (-1 = nenhum) */
+__attribute__((weak)) int state_hold_restart(fighter_t *f, state_t *s)
+{
+    if (xp_find(&s->d, "dir_x") && xp_int(&s->d, "air", 0)) return f->air_movements_left > 0 ? fighter_name_id(f, "AirDashForward") : f->st_fall;
+    return s->d.cs ? s->cs.hold_restart : -1;
 }
