@@ -129,6 +129,10 @@ void fighter_tick_before(fighter_t *f);
 void fighter_tick(fighter_t *f);
 typedef struct { bool has_di, has_reverse, reverse; fxv di; int feint; } action_extra_t;   /* feint: -1 ausente, 0/1 */
 void fighter_select_action(fighter_t *f, int action, void *data, const action_extra_t *extra);
+bool fighter_state_usable(fighter_t *f, state_t *s);
+bool fighter_state_usable_grounded(fighter_t *f, state_t *s, bool force_aerial, bool force_grounded);
+bool fighter_state_allowed_in_stance(fighter_t *f, state_t *s);
+bool state_usable_extra(fighter_t *f, state_t *s);   /* weak: usable_requirement_nodes do script */
 int  fighter_name_id(const fighter_t *f, const char *name);
 typedef struct { int timing; int height_x, height_y; } parry_data_t;      /* data dos estados de parry ("Melee Parry Timing", "Block Height") */
 

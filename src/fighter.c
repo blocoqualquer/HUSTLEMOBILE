@@ -403,8 +403,45 @@ void fighter_enable_hit_cancel(fighter_t *f, bool projectile)
 
 /* ---------- selecao de acao ---------- */
 
+/* CharState.is_usable / is_usable_with_grounded_check / allowed_in_stance */
+__attribute__((weak)) bool state_usable_extra(fighter_t *f, state_t *s) { (void)f; (void)s; return true; }
+
+bool fighter_state_usable(fighter_t *f, state_t *s)
+{
+    if (!s->d.cs) return true;
+    const charstate_def_t *c = &s->cs;
+    if (f->o.sm.cur && strcmp(f->o.sm.cur->d.name, "WhiffInstantCancel") == 0) {
+        if (!s->d.has_hitboxes) return false;
+        if (!c->usable_from_whiff_cancel_if_possible) return false;
+    }
+    if (c->uses_air_movement && !(c->ignore_air_option_use_in_combos && f->combo_count > 0) && f->air_movements_left <= 0) return false;
+    if (c->type == 4 /* Defense */ && f->penalty_ticks > 0) return false;
+    if (c->combo_only && f->combo_count < 1) return false;
+    if (c->neutral_only && f->combo_count >= 1) return false;
+    if (f->supers_available < c->super_level) return false;
+    return state_usable_extra(f, s);
+}
+
+bool fighter_state_usable_grounded(fighter_t *f, state_t *s, bool force_aerial, bool force_grounded)
+{
+    if (!fighter_state_usable(f, s)) return false;
+    int at = s->d.cs ? s->cs.air_type : 2;
+    bool g = f->o.chara.grounded;
+    if (at == 1) { if (force_grounded) return false; if (g && !force_aerial) return false; }
+    if (at == 0) { if (force_aerial) return false; if (!g && !force_grounded) return false; }
+    return true;
+}
+
+bool fighter_state_allowed_in_stance(fighter_t *f, state_t *s)
+{
+    if (!s->d.cs) return true;
+    return ns_has(&s->cs.allowed_stances, fighter_name_id(f, "All")) || ns_has(&s->cs.allowed_stances, f->stance);
+}
+
 void fighter_select_action(fighter_t *f, int action, void *data, const action_extra_t *extra)
 {
+    state_t *st = (action >= 0 && action < f->o.sm.nstates) ? &f->o.sm.states[action] : NULL;
+    if (st && !fighter_state_usable(f, st)) { f->will_forfeit = true; }
     f->queued_action = action;
     f->queued_data = data;
     f->has_extra = extra != NULL;
