@@ -10,6 +10,7 @@
 #define SID_NONE (-1)
 
 typedef int sid;
+struct fighter_s;
 typedef struct obj_s obj_t;
 typedef struct state_s state_t;
 
@@ -28,7 +29,10 @@ typedef struct {
     sid  (*frame)(obj_t *, state_t *, int tick);          /* _frame_N */
     sid  (*animation_finished)(obj_t *, state_t *);
     void (*hit_something)(obj_t *, state_t *, obj_t *victim, hitbox_t *);   /* _on_hit_something (hospedeiro nao-lutador) */
-    void (*got_parried)(obj_t *, state_t *);                                /* _got_parried */
+    void (*got_parried)(obj_t *, state_t *);
+    void (*got_blocked)(obj_t *, state_t *);                                /* on_got_blocked do estado */
+    void (*got_perfect_parried)(obj_t *, state_t *);                        /* on_got_perfect_parried */
+    bool (*usable)(struct fighter_s *, state_t *, bool base);                      /* is_usable() sobrescrito (base = resultado de CharState.is_usable) */
 } state_vt_t;
 
 

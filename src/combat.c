@@ -125,7 +125,7 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     o->hits_projectiles = d->hits_projectiles; o->cancellable = h->cancellable;
     o->followup_state = d->followup_state;
     o->guard_break = d->guard_break; o->parriable = d->parriable; o->block_punishable = d->block_punishable;
-    o->looping = d->looping; o->ignore_projectile_armor = d->ignore_projectile_armor; o->block_cancel_allowed = d->block_cancel_allowed;
+    o->looping = d->looping; o->ignore_projectile_armor = d->ignore_projectile_armor; o->block_cancel_allowed = h->block_cancel_allowed;
     o->allowed_to_hit_own_team = d->allowed_to_hit_own_team; o->block_pushback_reversible = d->block_pushback_reversible;
     o->block_reverse_pushback_modifier = d->block_reverse_pushback_modifier; o->guard_break_proration = d->guard_break_proration;
     o->host = host; o->source = h;
@@ -208,6 +208,7 @@ void fighter_launched_by(fighter_t *f, hitdata_t *hin)
 {
     obj_t *o = &f->o;
     hitdata_t *h = ring_push(f, hin);
+    fighter_emit_got_hit(f);
     if (f->super_meter_used_recently > 0) {
         fighter_gain_super_meter_raw(f, f->super_meter_used_recently / SUPER_METER_GRACE_DIVISOR);
         f->super_meter_used_recently = 0; f->super_meter_grace_ticks = 0;
@@ -264,6 +265,7 @@ void fighter_launched_by(fighter_t *f, hitdata_t *hin)
 void fighter_thrown_by(fighter_t *f, hitdata_t *h)
 {
     (void)h;
+    fighter_emit_got_hit(f);
     sm_change_state(&f->o, f->st_grabbed, NULL, true, true);
 }
 
@@ -290,6 +292,7 @@ void fighter_hit_by(fighter_t *f, hitdata_t *h, bool force_hit)
             fighter_take_damage(f, ref->combo_count <= 0 ? h->damage : h->damage_in_combo, 0, FX_ONE, 0, FX_ONE, self_hit, false);
             break; }
         case HB_FLIP:
+            fighter_emit_got_hit(f);
             f->o.chara.facing = -f->o.chara.facing;
             f->o.chara.vx = -f->o.chara.vx;
             obj_update_boxes(o);
@@ -297,6 +300,7 @@ void fighter_hit_by(fighter_t *f, hitdata_t *h, bool force_hit)
             fighter_take_damage(f, h->combo_count > 0 ? h->damage_in_combo : h->damage, h->minimum_damage, h->meter_gain_modifier, 0, FX_ONE, self_hit, false);
             break;
         case HB_THROWHIT:
+            fighter_emit_got_hit(f);
             fighter_apply_hitlag(f, h);
             fighter_apply_hitlag(f->opponent, h);
             fighter_take_damage(f, h->combo_count > 0 ? h->damage_in_combo : h->damage, h->minimum_damage, h->meter_gain_modifier, 0, FX_ONE, self_hit, false);
@@ -378,7 +382,7 @@ void fighter_block_hitbox(fighter_t *f, hitdata_t *h, bool force_parry, bool for
     if (!projectile) {
         op->feinting = false;
         if (!perfect) { op->got_blocked = true; if (op->vt && op->vt->on_attack_blocked) { /* on_blocked_melee_attack e hook do atacante */ } }
-        else { op->got_parried = true; if (csd(op->o.sm.cur)) op->o.sm.cur->cs.interruptible_on_opponent_turn = 0; }
+        else { op->got_parried = true; if (csd(op->o.sm.cur)) op->o.sm.cur->cs.interruptible_on_opponent_turn = 0; op->o.hitlag_ticks += op->o.sm.cur->d.extra_parry_hitlag; if (op->o.sm.cur->d.vt && op->o.sm.cur->d.vt->got_perfect_parried) op->o.sm.cur->d.vt->got_perfect_parried(&op->o, op->o.sm.cur); if (op->vt && op->vt->on_got_parried) op->vt->on_got_parried(op); }
         if (!is_new) op->o.sm.cur->feinting = false;
     }
 
@@ -412,6 +416,8 @@ void fighter_block_hitbox(fighter_t *f, hitdata_t *h, bool force_parry, bool for
             s->current_tick = 0;
             if (op->vt && op->vt->on_attack_blocked) op->vt->on_attack_blocked(op);
             ost->character_state_was_blocked = true;
+            ost->was_blocked = true; ost->number_of_hits_blocked++;
+            if (ost->d.vt && ost->d.vt->got_blocked) ost->d.vt->got_blocked(&op->o, ost);
             op->blockstun_ticks += block_hitlag;
             fighter_add_penalty(op, -10, false);
             if (op->feints < op->num_feints) op->feints++;
@@ -490,7 +496,7 @@ void eng_hitbox_hit(hitbox_t *hb, obj_t *victim)
         fx pb = fx_div(fx_mul(d->pushback_x + pm, -FX_ONE), fxi(2));
         phys_add_pushback(&host->chara, pb);
         phys_add_pushback(&victim->chara, pb);
-        if (host->is_fighter) cs_on_hit_something(host->fighter, host->sm.cur, victim, hb);
+        if (host->is_fighter) { cs_on_hit_something(host->fighter, host->sm.cur, victim, hb); if (host->sm.cur->d.vt && host->sm.cur->d.vt->hit_something) host->sm.cur->d.vt->hit_something(host, host->sm.cur, victim, hb); }
         else if (host->sm.cur && host->sm.cur->d.vt && host->sm.cur->d.vt->hit_something) host->sm.cur->d.vt->hit_something(host, host->sm.cur, victim, hb);
         return;
     }
@@ -522,7 +528,7 @@ void eng_hitbox_hit(hitbox_t *hb, obj_t *victim)
         phys_add_pushback(&host->chara, pb);
         phys_add_pushback(&victim->chara, pb);
         if (vf->opponent && &vf->opponent->o != host) phys_add_pushback(&vf->opponent->o.chara, pb);
-        if (host->is_fighter) cs_on_hit_something(host->fighter, host->sm.cur, victim, hb);
+        if (host->is_fighter) { cs_on_hit_something(host->fighter, host->sm.cur, victim, hb); if (host->sm.cur->d.vt && host->sm.cur->d.vt->hit_something) host->sm.cur->d.vt->hit_something(host, host->sm.cur, victim, hb); }
         else if (host->sm.cur && host->sm.cur->d.vt && host->sm.cur->d.vt->hit_something) host->sm.cur->d.vt->hit_something(host, host->sm.cur, victim, hb);
     }
 }

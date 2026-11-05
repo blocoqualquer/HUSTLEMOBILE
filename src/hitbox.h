@@ -62,7 +62,7 @@ typedef struct hitbox_s {
     const hitbox_def_t *def;
     box_t box;
     int damage, hitstun_ticks, combo_hitstun_ticks, victim_hitlag, combo_victim_hitlag, priority;   /* mutaveis em runtime pelos scripts */
-    uint8_t cancellable, hit_cancellable_dummy;
+    uint8_t cancellable, hit_cancellable_dummy, block_cancel_allowed;   /* mutaveis em runtime */
     bool active, enabled, played_whiff_sound;
     int tick;
     int hit_objects[HB_MAX_HIT_OBJECTS]; int nhit;       /* uid dos objetos ja atingidos */

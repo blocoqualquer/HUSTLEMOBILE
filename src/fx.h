@@ -12,6 +12,8 @@ typedef int64_t fx;
 #define FX_SHIFT 16
 #define FX_ONE   ((fx)1 << FX_SHIFT)
 #define FX_HALF  (FX_ONE >> 1)
+/* constante fx em tempo de compilacao (arredonda como fx_parse); so para literais */
+#define FXC(v) ((fx)((v) * 65536.0 + ((v) < 0 ? -0.5 : 0.5)))
 
 #define FX_INT(i)    ((fx)(i) * FX_ONE)
 #define FX_RAW(r)    ((fx)(r))

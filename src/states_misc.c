@@ -51,8 +51,8 @@ static sid burst_frame(obj_t *o, state_t *s, int t)
 }
 static sid burst_tick(obj_t *o, state_t *s)
 {
-    if (s->ustate[0] && o->gravity_enabled) phys_grav(&o->chara);
-    phys_apply_forces(&o->chara);
+    if (s->ustate[0] && o->gravity_enabled) obj_apply_grav(o);
+    obj_apply_forces(o);
     o->invulnerable = !(s->current_tick > 15);
     return SID_NONE;
 }
@@ -83,7 +83,7 @@ const state_vt_t vt_characters_states_CounterAttack = { .enter = counter_enter, 
 /* ---------- InstantCancel / SuperFall / ChargeDash / Forfeit ---------- */
 
 static sid ic_enter_whiff(obj_t *o, state_t *s) { (void)s; use_burst_meter(F(o), rnd(fx_mul(fxi(MAX_BURST_METER), 49152))); return SID_NONE; }
-static sid ic_tick(obj_t *o, state_t *s) { (void)s; phys_fric(&o->chara); if (o->gravity_enabled) phys_grav(&o->chara); phys_apply_forces(&o->chara); return SID_NONE; }
+static sid ic_tick(obj_t *o, state_t *s) { (void)s; phys_fric(&o->chara); if (o->gravity_enabled) obj_apply_grav(o); obj_apply_forces(o); return SID_NONE; }
 const state_vt_t vt_characters_states_InstantCancel = { .tick = ic_tick };
 const state_vt_t vt_characters_states_WhiffInstantCancel = { .enter = ic_enter_whiff, .tick = ic_tick };
 
@@ -246,7 +246,7 @@ static sid grab_frame(obj_t *o, state_t *s, int t)
 }
 static sid grab_tick(obj_t *o, state_t *s)
 {
-    phys_fric(&o->chara); if (o->gravity_enabled) phys_grav(&o->chara); phys_apply_forces(&o->chara);
+    phys_fric(&o->chara); if (o->gravity_enabled) obj_apply_grav(o); obj_apply_forces(o);
     if (s->ustate[0] > 0) { s->current_tick = 0; s->ustate[0]--; }
     const xy_data_t *d = (const xy_data_t *)s->data;
     if (s->current_tick == 4 && d && d->dash) { for (int i = 0; i < s->d.nhb; i++) if (s->d.hb[i].is_throwbox) hitbox_deactivate(&s->hbr[i]); }
@@ -373,7 +373,7 @@ static sid fz_tick(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     if (s->ustate[1]) { o->chara.vx = 0; o->chara.vy = 0; }
-    else { if (o->gravity_enabled) phys_grav(&o->chara); phys_fric(&o->chara); phys_apply_forces(&o->chara); }
+    else { if (o->gravity_enabled) obj_apply_grav(o); phys_fric(&o->chara); obj_apply_forces(o); }
     phys_update_grounded(&o->chara);
     if (s->current_tick >= s->ustate[0]) {
         if (s->ustate[2]) return s->d.fallback_state;

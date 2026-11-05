@@ -231,7 +231,7 @@ int fighter_moves_used(const fighter_t *f, int name_id)
     return 0;
 }
 
-void fighter_reset_combo(fighter_t *f)
+static void fighter_reset_combo_base(fighter_t *f)
 {
     fighter_t *op = f->opponent;
     f->combo_count = 0; f->o.combo_count = 0;
@@ -391,6 +391,7 @@ void fighter_enable_interrupt(fighter_t *f, state_t *s, bool check_opponent)
     (void)s; (void)check_opponent;
     f->o.state_interruptable = true;
     f->was_my_turn = true;
+    if (f->vt && f->vt->on_state_interruptable) f->vt->on_state_interruptable(f);
     if (f->prorated_di && f->opponent->combo_count > 0 && f->opponent->combo_proration > 0) f->opponent->combo_proration_ready = true;
 }
 
@@ -406,7 +407,7 @@ void fighter_enable_hit_cancel(fighter_t *f, bool projectile)
 /* CharState.is_usable / is_usable_with_grounded_check / allowed_in_stance */
 __attribute__((weak)) bool state_usable_extra(fighter_t *f, state_t *s) { (void)f; (void)s; return true; }
 
-bool fighter_state_usable(fighter_t *f, state_t *s)
+static bool fighter_state_usable_base(fighter_t *f, state_t *s)
 {
     if (!s->d.cs) return true;
     const charstate_def_t *c = &s->cs;
@@ -420,6 +421,13 @@ bool fighter_state_usable(fighter_t *f, state_t *s)
     if (c->neutral_only && f->combo_count >= 1) return false;
     if (f->supers_available < c->super_level) return false;
     return state_usable_extra(f, s);
+}
+
+bool fighter_state_usable(fighter_t *f, state_t *s)
+{
+    bool base = fighter_state_usable_base(f, s);
+    if (s->d.vt && s->d.vt->usable) return s->d.vt->usable(f, s, base);
+    return base;
 }
 
 bool fighter_state_usable_grounded(fighter_t *f, state_t *s, bool force_aerial, bool force_grounded)
@@ -449,7 +457,8 @@ void fighter_select_action(fighter_t *f, int action, void *data, const action_ex
         f->ex_has_di = extra->has_di; f->ex_di = extra->di;
         f->ex_has_reverse = extra->has_reverse; f->ex_reverse = extra->reverse;
         f->ex_feint = extra->feint;
-    }
+        f->ex_cx = *extra;
+    } else memset(&f->ex_cx, 0, sizeof f->ex_cx);
     f->o.state_interruptable = false;
     f->o.state_hit_cancellable = false;
 }
@@ -468,6 +477,7 @@ static void process_extra(fighter_t *f)
             else if (!f->used_buffer) fighter_use_super_bar(f);
         }
     } else f->feinting = false;
+    if (f->vt && f->vt->process_extra) f->vt->process_extra(f, &f->ex_cx);
 }
 
 /* ---------- tick ---------- */
@@ -491,7 +501,7 @@ void fighter_tick_before(fighter_t *f)
     if (f->use_buffer && f->buffered_valid) {
         f->queued_action = f->buffered_action; f->queued_data = f->buffered_data;
         f->has_extra = f->buffered_has_extra; f->ex_has_di = f->b_ex_has_di; f->ex_di = f->b_ex_di;
-        f->ex_has_reverse = f->b_ex_has_reverse; f->ex_reverse = f->b_ex_reverse; f->ex_feint = f->b_ex_feint;
+        f->ex_has_reverse = f->b_ex_has_reverse; f->ex_reverse = f->b_ex_reverse; f->ex_feint = f->b_ex_feint; f->ex_cx = f->b_ex_cx;
         f->buffered_valid = false; f->use_buffer = false; f->used_buffer = true;
     }
     if (f->has_extra) {
@@ -533,7 +543,7 @@ void fighter_tick_before(fighter_t *f)
     f->lowest_tick = o->sm.cur->current_real_tick;
 }
 
-void fighter_tick(fighter_t *f)
+static void fighter_tick_base(fighter_t *f)
 {
     obj_t *o = &f->o;
     if (o->hitlag_ticks > 0) {
@@ -653,6 +663,7 @@ void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstate
         f->o.gravity_enabled = true;
     }
     obj_init(&f->o, states, nstates, start);
+    if (f->vt && f->vt->init) f->vt->init(f);
 }
 
 void fighter_refresh_feints(fighter_t *f) { f->feints = f->num_feints; }
@@ -734,3 +745,19 @@ void fighter_projectile_free_cancel(fighter_t *f)
     if (f->got_blocked || f->got_parried) return;
     f->feinting = true;
 }
+
+void fighter_emit_got_hit(fighter_t *f) { if (f->vt && f->vt->on_got_hit) f->vt->on_got_hit(f); }
+
+void obj_apply_forces(obj_t *o)
+{
+    if (o->is_fighter && o->fighter->vt && o->fighter->vt->apply_forces && o->fighter->vt->apply_forces(o->fighter)) return;
+    phys_apply_forces(&o->chara);
+}
+void obj_apply_grav(obj_t *o)
+{
+    if (o->is_fighter && o->fighter->vt && o->fighter->vt->apply_grav && o->fighter->vt->apply_grav(o->fighter)) return;
+    phys_grav(&o->chara);
+}
+
+void fighter_tick(fighter_t *f) { fighter_tick_base(f); if (f->vt && f->vt->tick) f->vt->tick(f); }
+void fighter_reset_combo(fighter_t *f) { fighter_reset_combo_base(f); if (f->vt && f->vt->reset_combo) f->vt->reset_combo(f); }

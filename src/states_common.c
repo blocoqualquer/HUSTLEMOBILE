@@ -482,9 +482,9 @@ static sid parry_tick(obj_t *o, state_t *s)
     fighter_t *f = F(o);
     phys_fric(&o->chara);
     if (s->d.kind == KIND_PARRY_NEW) {
-        if (o->gravity_enabled) phys_grav(&o->chara);               /* NewParry._tick: apply_grav */
+        if (o->gravity_enabled) obj_apply_grav(o);               /* NewParry._tick: apply_grav */
         if (f->combo_count > 0 && s->current_tick > 60 && s->pr.parried) { cs_enable_interrupt(f, s, true, false); return s->d.fallback_state; }
-        phys_apply_forces(&o->chara);
+        obj_apply_forces(o);
         f->parry_knockback_divisor = FXC_PARRY_GROUNDED_KB_DIVISOR;
         state_t *os = f->opponent->o.sm.cur;
         if (os->d.kind == KIND_PARRY_NEW) {
@@ -494,9 +494,9 @@ static sid parry_tick(obj_t *o, state_t *s)
         }
         if (f->hp <= 0) return fighter_name_id(f, "Wait");
     } else {
-        if (s->cs.air_type == AIR_AERIAL && o->gravity_enabled) phys_grav(&o->chara);
+        if (s->cs.air_type == AIR_AERIAL && o->gravity_enabled) obj_apply_grav(o);
         if (f->combo_count > 0 && s->current_tick > 30 && s->pr.parried) { cs_enable_interrupt(f, s, true, false); return s->d.fallback_state; }
-        phys_apply_forces(&o->chara);
+        obj_apply_forces(o);
         if (s->current_tick >= 10 && s->pr.perfect && s->d.can_parry) s->pr.parry_active = false;
     }
     return SID_NONE;

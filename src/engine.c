@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "fighter.h"
 #include <string.h>
 
 /* pontos de extensao implementados pelo modulo de hitbox/hurtbox (versao fraca: nada a fazer) */
@@ -159,7 +160,7 @@ sid obj_state_tick_shared(obj_t *o, state_t *s)
         if (vt && vt->frame) { sid r = vt->frame(o, s, t); if (r != SID_NONE) return r; }
     }
     if (d->apply_fric) phys_fric(c);
-    if (d->apply_grav && o->gravity_enabled) phys_grav(c);
+    if (d->apply_grav && o->gravity_enabled) obj_apply_grav(o);
     if (d->apply_custom_x_fric) phys_x_fric(c, d->custom_x_fric);
     if (d->apply_custom_y_fric) phys_y_fric(c, d->custom_y_fric);
     if (d->apply_custom_grav && o->gravity_enabled) phys_grav_custom(c, d->custom_grav, d->custom_grav_max_fall_speed);
@@ -168,7 +169,7 @@ sid obj_state_tick_shared(obj_t *o, state_t *s)
         else if (d->apply_custom_limits) {
             limit_x_speed(o, c->grounded ? d->custom_max_ground_speed : d->custom_max_air_speed);
             phys_apply_forces_no_limit(c);
-        } else phys_apply_forces(c);
+        } else obj_apply_forces(o);
     }
     return SID_NONE;
 }

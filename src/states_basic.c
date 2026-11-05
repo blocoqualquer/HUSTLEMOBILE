@@ -21,7 +21,7 @@ static sid idle_enter(obj_t *o, state_t *s)
 static sid idle_tick(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
-    phys_fric(&o->chara); phys_apply_forces(&o->chara);
+    phys_fric(&o->chara); obj_apply_forces(o);
     if (xp_int(&s->d, "auto_fall", 1) && !o->chara.grounded) return by_name(f, "Fall");
     if (f->hp <= 0) return f->st_knockdown;
     return SID_NONE;
@@ -30,7 +30,7 @@ const state_vt_t vt_characters_states_Idle = { .enter = idle_enter, .tick = idle
 
 static sid fall_tick(obj_t *o, state_t *s)
 {
-    phys_grav(&o->chara); phys_apply_forces(&o->chara);
+    obj_apply_grav(o); obj_apply_forces(o);
     if ((s->current_tick > 3 || strcmp(prev_name(o), "Fall") == 0) && o->chara.grounded) return by_name(F(o), "Landing");
     return SID_NONE;
 }
@@ -56,7 +56,7 @@ static sid land_tick(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     if (s->current_tick > 4) phys_fric(&o->chara);
-    phys_apply_forces(&o->chara);
+    obj_apply_forces(o);
     s->cs.interruptible_on_opponent_turn = f->opponent->combo_count <= 0 && s->ustate[0] <= LAND_DEFAULT_LAG;
     return SID_NONE;
 }
@@ -129,7 +129,7 @@ static sid ws_tick(obj_t *o, state_t *s)
     fx grav = WS_GRAV + (fx)(f->wall_slams - 1) * WS_GRAV_PER;
     fx fall = WS_FALL + (fx)(f->wall_slams - 1) * WS_FALL_PER;
     phys_grav_custom(&o->chara, grav, fall);
-    phys_apply_forces(&o->chara);
+    obj_apply_forces(o);
     if (s->current_tick > 30) { cs_enable_interrupt(f, s, true, false); return by_name(f, "Fall"); }
     return SID_NONE;
 }
@@ -161,7 +161,7 @@ static sid tech_frame(obj_t *o, state_t *s, int t)
     else if (t == 1) { phys_move(&o->chara, fxi(-10 * o->chara.facing), 0); phys_force_rel(&o->chara, -(8 << 16), 0); }
     return SID_NONE;
 }
-static sid tech_tick(obj_t *o, state_t *s) { (void)s; phys_grav(&o->chara); phys_fric(&o->chara); phys_apply_forces(&o->chara); return SID_NONE; }
+static sid tech_tick(obj_t *o, state_t *s) { (void)s; obj_apply_grav(o); phys_fric(&o->chara); obj_apply_forces(o); return SID_NONE; }
 const state_vt_t vt_characters_states_ThrowTech = { .frame = tech_frame, .tick = tech_tick };
 
 static sid taunt_frame(obj_t *o, state_t *s, int t)
@@ -313,8 +313,8 @@ static sid jump_tick(obj_t *o, state_t *s)
         if (s->ustate[JFSIGN] < 0) jb = !left && s->ustate[JX] != 0; else jb = left && s->ustate[JX] != 0;
         if (jb) fighter_set_anim(f, s, "JumpBack"); else s->anim = s->def->sprite_anim;
         if (xp_int(&s->d, "fall_anim", 0) && o->chara.vy > xp_fx(&s->d, "fall_anim_speed", FX_ONE)) fighter_set_anim(f, s, "Fall");
-        if (o->gravity_enabled) phys_grav(&o->chara);
-        if (!jsuper(s) || o->chara.vy > 0 || s->current_tick > J_SUPER_FORCES_END) phys_apply_forces(&o->chara);
+        if (o->gravity_enabled) obj_apply_grav(o);
+        if (!jsuper(s) || o->chara.vy > 0 || s->current_tick > J_SUPER_FORCES_END) obj_apply_forces(o);
         else phys_apply_forces_no_limit(&o->chara);
     }
     if (s->current_tick > jt && o->chara.grounded) return by_name(f, "Landing");
@@ -384,7 +384,7 @@ static sid dash_frame(obj_t *o, state_t *s, int t)
     }
     fx ratio = fx_mul(s->ufx[0], s->ufx[1] - D_MIN_RATIO) + D_MIN_RATIO;
     phys_force_rel(&o->chara, fx_mul(force, ratio), 0);
-    if (!xp_int(&s->d, "air", 0) && o->gravity_enabled) phys_grav(&o->chara);
+    if (!xp_int(&s->d, "air", 0) && o->gravity_enabled) obj_apply_grav(o);
     return SID_NONE;
 }
 
@@ -392,8 +392,8 @@ static sid dash_tick(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     phys_x_fric(&o->chara, xp_fx(&s->d, "fric", 3277));
-    if (!xp_int(&s->d, "air", 0) && o->gravity_enabled) phys_grav(&o->chara);
-    if (s->ustate[DCHG]) phys_apply_forces_no_limit(&o->chara); else phys_apply_forces(&o->chara);
+    if (!xp_int(&s->d, "air", 0) && o->gravity_enabled) obj_apply_grav(o);
+    if (s->ustate[DCHG]) phys_apply_forces_no_limit(&o->chara); else obj_apply_forces(o);
     fx lim = xp_fx(&s->d, "speed_limit", 40 << 16);
     if (fx_vec_len(o->chara.vx, o->chara.vy) > lim) {
         fxv v = fxv_norm_times(fxv_make(o->chara.vx, o->chara.vy), lim);

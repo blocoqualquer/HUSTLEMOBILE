@@ -58,6 +58,9 @@
 #define FXC_PUSH_BLOCK_DIST      FX_INT(220)
 
 typedef struct fighter_s fighter_t;
+typedef struct { bool has_di, has_reverse, reverse; fxv di; int feint;
+                 unsigned cx_has, cx_val; fxv cx_dir; } action_extra_t;   /* cx_*: extras booleanos especificos do personagem (bits) + 1 direcao */   /* feint: -1 ausente, 0/1 */
+#define FIGHTER_CH_SIZE 384          /* area privada do personagem (ninja_t etc.) */
 
 /* HitboxData: foto do hitbox no momento do acerto */
 typedef struct {
@@ -107,7 +110,9 @@ struct fighter_s {
     int action, action_data_i; void *action_data;          /* acao escolhida (sid ou ACTION_*) e dados */
     int queued_action; void *queued_data;
     bool has_extra, ex_has_di, ex_has_reverse, ex_reverse; fxv ex_di; int ex_feint;           /* "extra" da acao: DI, reverse, feint (-1: ausente) */
+    action_extra_t ex_cx, b_ex_cx;                                                             /* extras especificos do personagem */
     bool buffered_valid; int buffered_action; void *buffered_data; bool buffered_has_extra, b_ex_has_di, b_ex_has_reverse, b_ex_reverse; fxv b_ex_di; int b_ex_feint;
+    _Alignas(8) unsigned char ch[FIGHTER_CH_SIZE];
     const struct fighter_vt_s *vt; const char *const *names; int nnames; const chardata_t *cd;
     /* DI e knockback */
     fxv current_di, current_nudge, last_vel; fx nudge_amount, min_di_scaling, max_di_scaling, di_modifier, knockback_taken_modifier, damage_taken_modifier;
@@ -127,7 +132,6 @@ struct fighter_s {
 void fighter_init(fighter_t *f, fighter_t *opponent, state_t *states, int nstates, sid start, int id);
 void fighter_tick_before(fighter_t *f);
 void fighter_tick(fighter_t *f);
-typedef struct { bool has_di, has_reverse, reverse; fxv di; int feint; } action_extra_t;   /* feint: -1 ausente, 0/1 */
 void fighter_select_action(fighter_t *f, int action, void *data, const action_extra_t *extra);
 void fighter_projectile_free_cancel(fighter_t *f);
 bool fighter_state_usable(fighter_t *f, state_t *s);
@@ -151,7 +155,20 @@ typedef struct fighter_vt_s {
     void (*on_attack_blocked)(fighter_t *);
     void (*on_blocked_something)(fighter_t *);
     bool (*is_in_install_super)(fighter_t *);
+    void (*init)(fighter_t *);                       /* BaseChar.init (pos=...) */
+    void (*tick)(fighter_t *);                       /* apos o tick base */
+    void (*on_got_hit)(fighter_t *);                 /* signal got_hit */
+    void (*on_got_parried)(fighter_t *);
+    void (*on_state_interruptable)(fighter_t *);
+    void (*process_extra)(fighter_t *, const action_extra_t *);
+    void (*reset_combo)(fighter_t *);
+    bool (*apply_forces)(fighter_t *);               /* true = tratou (substitui phys_apply_forces) */
+    bool (*apply_grav)(fighter_t *);                 /* true = tratou */
 } fighter_vt_t;
+void fighter_emit_got_hit(fighter_t *f);
+void obj_apply_forces(obj_t *o);
+void obj_apply_grav(obj_t *o);
+
 
 /* medidores */
 void fighter_gain_burst_meter(fighter_t *f, int amount, bool passive);
