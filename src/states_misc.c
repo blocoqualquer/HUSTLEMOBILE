@@ -6,7 +6,6 @@ static inline fx fxi(int v) { return FX_INT(v); }
 static inline int rnd(fx v) { return (int)fx_round(v); }
 static inline int isign(int v) { return (v > 0) - (v < 0); }
 #define F(o) ((o)->fighter)
-enum { AIR_GROUNDED, AIR_AERIAL };
 
 static sid by_name(fighter_t *f, const char *n) { return fighter_name_id(f, n); }
 static fxv xy_div(fx x, fx y, fx mul, fx div) { return fxv_make(fx_mul(fx_div(x, div), mul), fx_mul(fx_div(y, div), mul)); }
@@ -317,7 +316,7 @@ static void throw_release(fighter_t *f, state_t *s)
     fighter_hit_by(f->opponent, &h, false);
 }
 
-static sid th_frame_shared(obj_t *o, state_t *s, int t)
+sid th_frame_shared(obj_t *o, state_t *s, int t)
 {
     fighter_t *f = F(o);
     cs_frame_shared(o, s, t);
@@ -329,7 +328,7 @@ static sid th_frame_shared(obj_t *o, state_t *s, int t)
     }
     return SID_NONE;
 }
-static sid th_tick_shared(obj_t *o, state_t *s)
+sid th_tick_shared(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     if (s->current_tick == 0) {
@@ -344,15 +343,15 @@ static sid th_tick_shared(obj_t *o, state_t *s)
     throw_update_pos(f, s);
     return r;
 }
-static sid th_tick_after(obj_t *o, state_t *s)
+sid th_tick_after(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     cs_tick_after(o, s);
     if (!s->ustate[0]) throw_opp_to_pos(f);
     return SID_NONE;
 }
-static sid th_enter(obj_t *o, state_t *s) { (void)o; s->ustate[0] = 0; return SID_NONE; }
-static void th_exit(obj_t *o, state_t *s) { (void)o; s->ustate[0] = 0; }
+sid th_enter(obj_t *o, state_t *s) { (void)o; s->ustate[0] = 0; return SID_NONE; }
+void th_exit(obj_t *o, state_t *s) { (void)o; s->ustate[0] = 0; }
 const state_vt_t vt_characters_states_ThrowState = {
     .enter = th_enter, .frame_shared = th_frame_shared, .tick_shared = th_tick_shared, .tick_after = th_tick_after, .exit = th_exit,
 };
@@ -363,7 +362,7 @@ static sid fz_enter(obj_t *o, state_t *s)
 {
     s->ustate[0] = 60; s->ustate[1] = 0; s->ustate[2] = 0;       /* duration, freeze_forces, can_act */
     const hitdata_t *h = (const hitdata_t *)s->data;
-    if (h) { s->ustate[0] = h->hitstun_ticks; /* misc_data "FreezeForces": TODO exportar misc_data */ }
+    if (h) { s->ustate[0] = h->hitstun_ticks; s->ustate[1] = (h->misc & MISC_FREEZE_FORCES) != 0; }
     if (s->ustate[1]) { o->chara.vx = 0; o->chara.vy = 0; }
     else { o->chara.vx = fx_mul(o->chara.vx, FX_HALF); o->chara.vy = fx_mul(o->chara.vy, FX_HALF); }
     return SID_NONE;

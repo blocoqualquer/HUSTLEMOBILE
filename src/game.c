@@ -1,6 +1,9 @@
 /* Porte de game.gd: tick(), prioridade de porta, colisoes, apply_hitboxes. Objetos extras: projectile.c (futuro). */
 #include "game.h"
 #include "projectile.h"
+static game_t *s_game;
+game_t *eng_game_get(void) { return s_game; }
+obj_t *game_obj_by_uid(game_t *g, int uid) { for (int i = 0; i < g->nobjs; i++) if (g->objs[i]->uid == uid) return g->objs[i]; for (int i = 0; i < 2; i++) if (g->p[i]->o.uid == uid) return &g->p[i]->o; return NULL; }
 #include <stdlib.h>
 
 static inline int iabs(int n) { return n < 0 ? -n : n; }
@@ -16,7 +19,7 @@ void game_init(game_t *g, fighter_t *p1, fighter_t *p2)
 {
     g->p[0] = p1; g->p[1] = p2;
     g->current_tick = 0; g->time = 3000; g->stage_width = 1000; g->max_char_distance = 600;
-    g->ceiling_height = 400; g->has_ceiling = true; g->game_finished = false; g->nobjs = 0; g->next_uid = 3;
+    g->ceiling_height = 400; g->has_ceiling = true; g->game_finished = false; g->nobjs = 0; g->next_uid = 3; s_game = g;
     p1->stage_width = p2->stage_width = g->stage_width;
     (void)eng_opp_game;
 }
@@ -214,7 +217,7 @@ static void apply_hitboxes(game_t *g, fighter_t *px1, fighter_t *px2)
     for (int i = 0; i < g->nobjs; i++) {
         obj_t *o = g->objs[i];
         if (o->disabled) continue;
-        const projdef_t *pj = &PROJ(o)->cd->pj;
+        const projdef_t *pj = &PROJ(o)->pj;
         hitbox_t *oh[32]; int on = obj_active_hitboxes(o, oh, 32);
         if (hittable) {
             for (int pi = 0; pi < 2; pi++) {
@@ -260,13 +263,13 @@ void game_tick(game_t *g)
         if (o->disabled) continue;
         if (!o->initialized) game_init_objects(g);
         obj_tick(o);
-        const proj_vt_t *pv = PROJ(o)->cd->pj.vt;
+        const proj_vt_t *pv = PROJ(o)->pj.vt;
         if (pv && pv->tick) pv->tick(o);
         int x = phys_x(&o->chara), y = phys_y(&o->chara);
         if (x < -g->stage_width) set_x(o, -g->stage_width); else if (x > g->stage_width) set_x(o, g->stage_width);
         if (g->has_ceiling && y <= -g->ceiling_height) {
             set_y(o, -g->ceiling_height);
-            if (PROJ(o)->cd->pj.fizzle_on_ceiling) proj_disable(o);
+            if (PROJ(o)->pj.fizzle_on_ceiling) proj_disable(o);
             if (pv && pv->on_hit_ceiling) pv->on_hit_ceiling(o);
         }
     }

@@ -5,7 +5,6 @@ static inline fx fxi(int v) { return FX_INT(v); }
 static inline int rnd(fx v) { return (int)fx_round(v); }
 static inline int isign(int v) { return (v > 0) - (v < 0); }
 #define F(o) ((o)->fighter)
-enum { AIR_GROUNDED, AIR_AERIAL, AIR_BOTH };
 enum { BOUNCE_LEFT, BOUNCE_RIGHT, BOUNCE_NONE };
 
 static sid by_name(fighter_t *f, const char *n) { return fighter_name_id(f, n); }
@@ -13,12 +12,12 @@ static const char *prev_name(obj_t *o) { state_t *p = obj_prev_state(o); return 
 
 /* ---------- Idle / Fall / Landing ---------- */
 
-static sid idle_enter(obj_t *o, state_t *s)
+sid idle_enter(obj_t *o, state_t *s)
 {
     if (xp_int(&s->d, "auto_fall", 1) && !o->chara.grounded) return by_name(F(o), "Fall");
     return SID_NONE;
 }
-static sid idle_tick(obj_t *o, state_t *s)
+sid idle_tick(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     phys_fric(&o->chara); obj_apply_forces(o);
@@ -38,7 +37,7 @@ const state_vt_t vt_characters_states_Fall = { .tick = fall_tick };
 
 #define LAND_DEFAULT_LAG 4
 #define LAND_MAX_EXTRA 5
-static sid land_frame(obj_t *o, state_t *s, int t)
+sid land_frame(obj_t *o, state_t *s, int t)
 {
     if (t != 0) return SID_NONE;
     fighter_t *f = F(o);
@@ -52,7 +51,7 @@ static sid land_frame(obj_t *o, state_t *s, int t)
     s->d.anim_length = lag; s->cs.iasa_at = lag - 1; s->ustate[0] = lag;
     return SID_NONE;
 }
-static sid land_tick(obj_t *o, state_t *s)
+sid land_tick(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     if (s->current_tick > 4) phys_fric(&o->chara);
@@ -164,7 +163,7 @@ static sid tech_frame(obj_t *o, state_t *s, int t)
 static sid tech_tick(obj_t *o, state_t *s) { (void)s; obj_apply_grav(o); phys_fric(&o->chara); obj_apply_forces(o); return SID_NONE; }
 const state_vt_t vt_characters_states_ThrowTech = { .frame = tech_frame, .tick = tech_tick };
 
-static sid taunt_frame(obj_t *o, state_t *s, int t)
+sid taunt_frame(obj_t *o, state_t *s, int t)
 {
     (void)s;
     if (t == 44) fighter_gain_super_meter_raw(F(o), MAX_SUPER_METER);

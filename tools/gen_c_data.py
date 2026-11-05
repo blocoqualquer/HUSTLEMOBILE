@@ -55,6 +55,13 @@ def index_classes(root):
                     if m: CLASSES[m.group(1)] = os.path.relpath(p, root).replace('\\', '/'); break
 
 BASE_SCRIPTS = ('CharState.gd', 'ObjectState.gd')
+MISC = {'IgnoreCaltrops': 1, 'LaunchCaltrops': 2, 'FreezeForces': 4}
+def miscbits(s):
+    return sum(v for k, v in MISC.items() if k in (s or ''))
+
+CID = ''
+EXTERNS = set()
+
 def script_params(root, script, props, sidof=lambda n: -1):
     """'export var' dos scripts do estado (abaixo de CharState) -> entradas {nome, int, fx}."""
     out = []
@@ -66,6 +73,12 @@ def script_params(root, script, props, sidof=lambda n: -1):
             m = re.match(r'\s*export(?:\(.*?\))?\s+var\s+(\w+)', ln)
             if not m or m.group(1) in seen or m.group(1) not in props: continue
             v = props[m.group(1)]; seen.add(m.group(1))
+            if m.group(1) == 'misc_data':
+                out.append('{"misc_data", %d, 0}' % miscbits(v)); continue
+            if isinstance(v, dict) and str(v.get('ext', '')).endswith('.tscn'):      # PackedScene -> ponteiro para os dados do projetil
+                sym = 'chardata_%s_%s' % (CID, os.path.basename(v['ext'])[:-5])
+                EXTERNS.add(sym)
+                out.append('{"%s", 0, 0, &%s}' % (m.group(1), sym)); continue
             if isinstance(v, bool): iv, fv = int(v), (1 << 16) * int(v)
             elif isinstance(v, int): iv, fv = v, v << 16
             elif isinstance(v, (float, str)):
@@ -90,6 +103,8 @@ def kind_of(root, script):
     return 0
 
 def main(jpath, cid, out, root=None):
+    global CID
+    CID = cid.split('_')[0]
     index_classes(root)
     d = json.load(open(jpath)); nodes = d['nodes']
     sprite_anims = d['animations'].get('Flip/Sprite', {})
@@ -161,7 +176,7 @@ def main(jpath, cid, out, root=None):
                      ('beats_grab', b(p['beats_grab'])), ('hits_projectiles', b(p['hits_projectiles'])), ('ignore_projectile_armor', b(p['ignore_projectile_armor'])),
                      ('allowed_to_hit_own_team', b(p['allowed_to_hit_own_team'])), ('guard_break', b(p['guard_break'])), ('guard_break_proration', i(p['guard_break_proration'])),
                      ('block_punishable', b(p['block_punishable'])), ('parriable', b(p['parriable'])), ('block_cancel_allowed', b(p['block_cancel_allowed'])),
-                     ('plus_frames', i(p['plus_frames'])), ('hit_height', i(p['hit_height'])), ('priority', i(p['priority'])), ('group', i(p['group'])),
+                     ('plus_frames', i(p['plus_frames'])), ('misc', i(miscbits(p.get('misc_data')))), ('hit_height', i(p['hit_height'])), ('priority', i(p['priority'])), ('group', i(p['group'])),
                      ('screenshake_amount', i(p['screenshake_amount'])), ('screenshake_frames', i(p['screenshake_frames'])), ('bump_on_whiff', b(p['bump_on_whiff'])),
                      ('rumble', b(p['rumble'])), ('bass_on_whiff', b(p['bass_on_whiff'])),
                      ('dir_x', fxs(p['dir_x'])), ('dir_y', fxs(p['dir_y'])), ('knockback', fxs(p['knockback'])), ('launch_reversible', b(p['launch_reversible'])),
@@ -236,6 +251,10 @@ def main(jpath, cid, out, root=None):
               ('state_screenshake_tick', i(p['state_screenshake_tick'])), ('flip_frame', i(p['flip_frame'])), ('sfx_tick', i(p['sfx_tick'])),
               ('projectile_tick', i(p['projectile_tick'])), ('timed_spawn_particle_tick', i(p['timed_spawn_particle_tick'])),
               ('extra_parry_hitlag', i(p['extra_parry_hitlag'])), ('sprite_anim', str(ai)), ('earliest_hitbox', i(p['earliest_hitbox']))]
+        ps = p.get('projectile_scene')
+        if isinstance(ps, dict) and str(ps.get('ext', '')).endswith('.tscn'):
+            sym = 'chardata_%s_%s' % (CID, os.path.basename(ps['ext'])[:-5]); EXTERNS.add(sym)
+            f += [('projectile_scene', '&' + sym), ('projectile_pos_x', i(p['projectile_pos_x'])), ('projectile_pos_y', i(p['projectile_pos_y']))]
         if ef: f += [('enter_force_x', fm(p['enter_force_dir_x'], p['enter_force_speed'])), ('enter_force_y', fm(p['enter_force_dir_y'], p['enter_force_speed']))]
         if tf: f += [('force_x', fm(p['force_dir_x'], p['force_speed'])), ('force_y', fm(p['force_dir_y'], p['force_speed']))]
         if nhb: f += [('hb', 'hb_%s_%s' % (cid, cn)), ('nhb', str(nhb))]
@@ -265,9 +284,11 @@ def main(jpath, cid, out, root=None):
     if 'immunity_susceptible' in root:      # BaseProjectile: propriedades do objeto
         rs = nodes['.'].get('script') or ''
         vtn = 'vtp_' + cname(rs.replace('res://', '').replace('.gd', ''))
-        L.insert(1, 'extern const struct proj_vt_s %s __attribute__((weak));' % vtn)
+        L.insert(max(i for i, l in enumerate(L) if l.startswith('#include')) + 1, 'extern const struct proj_vt_s %s __attribute__((weak));' % vtn)
         pj = '{1, %s, %s, &%s}' % (', '.join(b(root.get(k)) for k in PJ_FLAGS), fxs(root.get('hitlag_modifier', '1.0')), vtn)
         L[-1] = L[-1][:-2] + ', ' + pj + '};'
+    k = max(i for i, l in enumerate(L) if l.startswith('#include')) + 1
+    for sym in sorted(EXTERNS): L.insert(k, 'extern const chardata_t %s;' % sym)
     open(out, 'w').write('\n'.join(L) + '\n')
     print('%s: %d estados, %d animacoes, %d bytes de C' % (cid, len(states), len(anim_names), os.path.getsize(out)))
 

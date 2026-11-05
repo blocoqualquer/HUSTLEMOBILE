@@ -2,6 +2,7 @@
  * e a parte guiada por dados de ObjectState.gd. Estados sao identificados por indice (sid) em vez de nome. */
 #ifndef ENGINE_H
 #define ENGINE_H
+#include <stddef.h>
 #include "fx.h"
 #include "phys.h"
 #include "hitbox.h"
@@ -11,6 +12,8 @@
 
 typedef int sid;
 struct fighter_s;
+struct chardata_s;
+enum { AIR_GROUNDED, AIR_AERIAL, AIR_BOTH };
 typedef struct obj_s obj_t;
 typedef struct state_s state_t;
 
@@ -30,6 +33,9 @@ typedef struct {
     sid  (*animation_finished)(obj_t *, state_t *);
     void (*hit_something)(obj_t *, state_t *, obj_t *victim, hitbox_t *);   /* _on_hit_something (hospedeiro nao-lutador) */
     void (*got_parried)(obj_t *, state_t *);
+    size_t (*projectile_data)(obj_t *, state_t *, void *buf);                /* get_projectile_data (0 = null) */
+    void (*projectile_pos)(obj_t *, state_t *, int *x, int *y);             /* get_projectile_pos */
+    void (*process_projectile)(obj_t *, state_t *, obj_t *proj);            /* process_projectile */
     void (*got_blocked)(obj_t *, state_t *);                                /* on_got_blocked do estado */
     void (*got_perfect_parried)(obj_t *, state_t *);                        /* on_got_perfect_parried */
     bool (*usable)(struct fighter_s *, state_t *, bool base);                      /* is_usable() sobrescrito (base = resultado de CharState.is_usable) */
@@ -61,7 +67,7 @@ typedef struct {
     const char *title;
 } charstate_def_t;
 
-typedef struct { const char *k; int i; fx f; } xparam_t;   /* 'export var' do script do estado (gerado) */
+typedef struct { const char *k; int i; fx f; const void *p; } xparam_t;   /* 'export var' do script do estado (gerado) */
 
 enum { KIND_NORMAL, KIND_HURT_GROUNDED, KIND_HURT_AERIAL, KIND_PARRY_OLD, KIND_PARRY_NEW, KIND_COUNTER, KIND_THROW, KIND_HURT_MISC };
 
@@ -81,6 +87,7 @@ typedef struct {
     fx force_x, force_y; uint8_t has_force;
     int state_screenshake_tick, flip_frame, sfx_tick, projectile_tick, timed_spawn_particle_tick;
     int extra_parry_hitlag;
+    const struct chardata_s *projectile_scene; int projectile_pos_x, projectile_pos_y;   /* spawn_exported_projectile */
     int sprite_anim;                                                    /* indice da animacao no atlas */
     const hitbox_def_t *hb; int nhb;                                    /* hitboxes filhos do estado */
     const hurtstate_def_t *hurt; int nhurt;                             /* HurtboxState (troca a hurtbox em ticks) */
@@ -160,6 +167,7 @@ sid  obj_state_tick_shared(obj_t *o, state_t *s);
 void obj_state_exit_shared(obj_t *o, state_t *s);
 
 /* BaseObj */
+void eng_spawn_exported_projectile(obj_t *o, state_t *s);
 void obj_init(obj_t *o, state_t *states, int nstates, sid start);
 void obj_init_data(obj_t *o, state_t *states, int nstates, sid start, void *data);
 void obj_tick(obj_t *o);
@@ -179,11 +187,13 @@ static inline int obj_facing(const obj_t *o) { return o->chara.facing; }
 #include <string.h>
 /* is_hurt_state do original: Hurt*, WallSlam, Grabbed, Frozen */
 static inline bool state_is_hurt(const state_t *s) { return s->d.kind == KIND_HURT_GROUNDED || s->d.kind == KIND_HURT_AERIAL || s->d.kind == KIND_HURT_MISC; }
+static inline const void *xp_ptr(const state_def_t *d, const char *k);
 static inline const xparam_t *xp_find(const state_def_t *d, const char *k)
 {
     for (int i = 0; i < d->nxp; i++) if (strcmp(d->xp[i].k, k) == 0) return &d->xp[i];
     return 0;
 }
+static inline const void *xp_ptr(const state_def_t *d, const char *k) { const xparam_t *x = xp_find(d, k); return x ? x->p : NULL; }
 static inline int xp_int(const state_def_t *d, const char *k, int def) { const xparam_t *x = xp_find(d, k); return x ? x->i : def; }
 static inline fx  xp_fx(const state_def_t *d, const char *k, fx def)   { const xparam_t *x = xp_find(d, k); return x ? x->f : def; }
 

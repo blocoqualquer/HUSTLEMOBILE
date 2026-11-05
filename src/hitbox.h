@@ -41,7 +41,7 @@ typedef struct {
     fx di_modifier, sdi_modifier, meter_gain_modifier; int parry_meter_gain;
     uint8_t ignore_armor; int followup_state; uint8_t force_grounded, can_clash, hits_vs_dizzy, beats_grab, hits_projectiles;
     uint8_t ignore_projectile_armor, allowed_to_hit_own_team, guard_break; int guard_break_proration;
-    uint8_t block_punishable, parriable, block_cancel_allowed; int plus_frames, hit_height, priority, group;
+    uint8_t block_punishable, parriable, block_cancel_allowed; int plus_frames, hit_height, priority, group, misc;
     int screenshake_amount, screenshake_frames; uint8_t bump_on_whiff, rumble, bass_on_whiff;
     fx dir_x, dir_y, knockback; uint8_t launch_reversible, vacuum, send_away_from_center;
     fx block_pushback_modifier; uint8_t block_pushback_reversible; fx block_reverse_pushback_modifier, pushback_x;
@@ -62,7 +62,8 @@ typedef struct hitbox_s {
     const hitbox_def_t *def;
     box_t box;
     int damage, hitstun_ticks, combo_hitstun_ticks, victim_hitlag, combo_victim_hitlag, priority;   /* mutaveis em runtime pelos scripts */
-    uint8_t cancellable, hit_cancellable_dummy, block_cancel_allowed;   /* mutaveis em runtime */
+    uint8_t cancellable, hit_cancellable_dummy, block_cancel_allowed, block_punishable;   /* mutaveis em runtime */
+    fx knockback, dir_x, dir_y; int hit_height;           /* mutaveis em runtime (Stackriken, Caltrops) */
     bool active, enabled, played_whiff_sound;
     int tick;
     int hit_objects[HB_MAX_HIT_OBJECTS]; int nhit;       /* uid dos objetos ja atingidos */

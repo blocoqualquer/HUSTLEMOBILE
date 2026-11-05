@@ -15,4 +15,6 @@ typedef struct {
 void game_init(game_t *g, fighter_t *p1, fighter_t *p2);
 void game_tick(game_t *g);
 bool game_should_end(const game_t *g);
+game_t *eng_game_get(void);
+obj_t *game_obj_by_uid(game_t *g, int uid);
 #endif

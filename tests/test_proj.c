@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-extern const chardata_t chardata_ninja, chardata_kunai, chardata_sfireball;
+extern const chardata_t chardata_ninja, chardata_ninja_Kunai, chardata_ninja_StickmanFireball;
 static fighter_t A, B;
 static state_t SA[200], SB[200];
 static void setup(fighter_t *f, fighter_t *op, state_t *st, int id, int x)
@@ -27,7 +27,7 @@ int main(void)
     game_t g; game_init(&g, &A, &B);
     for (int t = 0; t < 3; t++) game_tick(&g);
     struct { fxv dir; } dd = { fxv_make(FX_ONE, 0) };
-    proj_t *k = proj_spawn(&g, &chardata_kunai, &A.o, 20, -16, true, &dd, sizeof dd, true);
+    proj_t *k = proj_spawn(&g, &chardata_ninja_Kunai, &A.o, 20, -16, true, &dd, sizeof dd, true);
     assert(k && g.nobjs == 1);
     int hit_tick = -1, maxdx = 0;
     int hp0 = B.hp;
@@ -44,7 +44,7 @@ int main(void)
     /* bola de fogo do Ninja (ShurikenDefault): move_x=9/tick sem speed_modifier; dano 60 e some ao acertar (clash) */
     int hp1 = B.hp;
     for (int i = 0; i < 40; i++) game_tick(&g);        /* B volta ao neutro */
-    proj_t *fb = proj_spawn(&g, &chardata_sfireball, &A.o, 20, -16, true, NULL, 0, true);
+    proj_t *fb = proj_spawn(&g, &chardata_ninja_StickmanFireball, &A.o, 20, -16, true, NULL, 0, true);
     assert(fb);
     int hp2 = B.hp;
     for (int i = 0; i < 40; i++) game_tick(&g);

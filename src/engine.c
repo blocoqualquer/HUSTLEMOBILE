@@ -148,7 +148,7 @@ sid obj_state_tick_shared(obj_t *o, state_t *s)
         int t = s->current_tick;
         if (t == d->sfx_tick) obj_emit(o, EV_SFX, s->id);
         if (t == d->force_tick && d->has_force) phys_force_rel(c, d->force_x, d->force_y);
-        if (t == d->projectile_tick) obj_emit(o, EV_PROJECTILE, s->id);
+        if (t == d->projectile_tick) { obj_emit(o, EV_PROJECTILE, s->id); if (d->projectile_scene) eng_spawn_exported_projectile(o, s); }
         if (t == d->timed_spawn_particle_tick) obj_emit(o, EV_TIMED_PARTICLE, s->id);
         if (t == d->state_screenshake_tick) obj_emit(o, EV_SHAKE, s->id);
         if (t == d->flip_frame) c->facing = -c->facing;
@@ -175,6 +175,8 @@ sid obj_state_tick_shared(obj_t *o, state_t *s)
 }
 
 /* ---------- BaseObj ---------- */
+__attribute__((weak)) void eng_spawn_exported_projectile(obj_t *o, state_t *s) { (void)o; (void)s; }
+
 void obj_init_data(obj_t *o, state_t *states, int nstates, sid start, void *data)
 {
     o->sm.states = states; o->sm.nstates = nstates; o->sm.cur = NULL; o->sm.nstack = 0; o->sm.has_queued = false;

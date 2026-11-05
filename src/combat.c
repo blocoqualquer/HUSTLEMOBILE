@@ -59,7 +59,7 @@ static int real_victim_hitlag(const hitbox_t *h)
 static fx real_knockback(const hitbox_t *h)
 {
     fighter_t *c = creator_of(h);
-    fx kb = h->def->knockback;
+    fx kb = h->knockback;
     if (!c || !h->host->is_fighter) return kb;
     int used = fighter_moves_used(c, c->o.sm.cur->d.name_id);
     if (used <= 0) return kb;
@@ -86,7 +86,9 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     const hitbox_def_t *d = h->def;
     obj_t *host = h->host;
     memset(o, 0, sizeof *o);
-    o->hit_height = d->hit_height;
+    o->hit_height = h->hit_height;
+    o->misc = d->misc;
+    if (h->host && h->host->sm.cur) { int sm_ = xp_int(&h->host->sm.cur->d, "misc_data", 0); if (sm_) o->misc = sm_; }
     o->hitstun_ticks = real_hitstun(h);
     o->victim_hitlag = real_victim_hitlag(h);
     o->facing_int = host->chara.facing;
@@ -94,7 +96,7 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     o->id = host->id;
     o->knockback = real_knockback(h);
     o->damage = h->damage;
-    o->dir_x = d->dir_x; o->dir_y = d->dir_y;
+    o->dir_x = h->dir_x; o->dir_y = h->dir_y;
     o->hitlag_ticks = d->hitlag_ticks;
     o->disable_collision = d->disable_collision;
     o->knockdown = d->knockdown;
@@ -124,7 +126,7 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     o->ground_bounce_knockback_modifier = d->ground_bounce_knockback_modifier;
     o->hits_projectiles = d->hits_projectiles; o->cancellable = h->cancellable;
     o->followup_state = d->followup_state;
-    o->guard_break = d->guard_break; o->parriable = d->parriable; o->block_punishable = d->block_punishable;
+    o->guard_break = d->guard_break; o->parriable = d->parriable; o->block_punishable = h->block_punishable;
     o->looping = d->looping; o->ignore_projectile_armor = d->ignore_projectile_armor; o->block_cancel_allowed = h->block_cancel_allowed;
     o->allowed_to_hit_own_team = d->allowed_to_hit_own_team; o->block_pushback_reversible = d->block_pushback_reversible;
     o->block_reverse_pushback_modifier = d->block_reverse_pushback_modifier; o->guard_break_proration = d->guard_break_proration;

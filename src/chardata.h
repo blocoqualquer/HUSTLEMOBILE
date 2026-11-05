@@ -15,7 +15,7 @@ typedef struct {
     const struct proj_vt_s *vt;       /* script raiz do projetil (porte manual); NULL = so BaseProjectile */
 } projdef_t;
 
-typedef struct {
+typedef struct chardata_s {
     const char *name;
     int nstates; const state_def_t *states;
     int nanims; const anim_def_t *anims;

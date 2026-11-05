@@ -60,10 +60,12 @@
 typedef struct fighter_s fighter_t;
 typedef struct { bool has_di, has_reverse, reverse; fxv di; int feint;
                  unsigned cx_has, cx_val; fxv cx_dir; } action_extra_t;   /* cx_*: extras booleanos especificos do personagem (bits) + 1 direcao */   /* feint: -1 ausente, 0/1 */
+enum { MISC_IGNORE_CALTROPS = 1, MISC_LAUNCH_CALTROPS = 2, MISC_FREEZE_FORCES = 4 };
 #define FIGHTER_CH_SIZE 384          /* area privada do personagem (ninja_t etc.) */
 
 /* HitboxData: foto do hitbox no momento do acerto */
 typedef struct {
+    int misc;   /* MISC_* (misc_data) */
     int id, hit_height, hitstun_ticks, facing_int, pos_x, pos_y, hitlag_ticks, victim_hitlag, damage, combo_count;
     int screenshake_frames, screenshake_amount, minimum_damage, damage_proration, parry_meter_gain, damage_in_combo;
     int minimum_grounded_frames, plus_frames, combo_scaling_amount, hitbox_type, guard_break_proration;
