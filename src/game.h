@@ -3,11 +3,12 @@
 #define GAME_H
 #include "fighter.h"
 
-#define GAME_MAX_OBJS 16
+#define GAME_MAX_OBJS 48
 typedef struct {
     fighter_t *p[2];
     int current_tick, time, stage_width, max_char_distance, ceiling_height;
     bool has_ceiling, game_finished;
+    int next_uid;
     obj_t *objs[GAME_MAX_OBJS]; int nobjs;           /* projeteis e outros objetos (alem dos lutadores) */
 } game_t;
 

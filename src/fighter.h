@@ -129,6 +129,7 @@ void fighter_tick_before(fighter_t *f);
 void fighter_tick(fighter_t *f);
 typedef struct { bool has_di, has_reverse, reverse; fxv di; int feint; } action_extra_t;   /* feint: -1 ausente, 0/1 */
 void fighter_select_action(fighter_t *f, int action, void *data, const action_extra_t *extra);
+void fighter_projectile_free_cancel(fighter_t *f);
 bool fighter_state_usable(fighter_t *f, state_t *s);
 bool fighter_state_usable_grounded(fighter_t *f, state_t *s, bool force_aerial, bool force_grounded);
 bool fighter_state_allowed_in_stance(fighter_t *f, state_t *s);

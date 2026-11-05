@@ -174,7 +174,7 @@ sid obj_state_tick_shared(obj_t *o, state_t *s)
 }
 
 /* ---------- BaseObj ---------- */
-void obj_init(obj_t *o, state_t *states, int nstates, sid start)
+void obj_init_data(obj_t *o, state_t *states, int nstates, sid start, void *data)
 {
     o->sm.states = states; o->sm.nstates = nstates; o->sm.cur = NULL; o->sm.nstack = 0; o->sm.has_queued = false;
     for (int i = 0; i < nstates; i++) {
@@ -191,9 +191,10 @@ void obj_init(obj_t *o, state_t *states, int nstates, sid start)
         state_setup_runtime(o, &states[i]);
     }
     o->def_hurtbox = o->hurtbox;
-    sm_change_state(o, start, NULL, true, true);
+    sm_change_state(o, start, data, true, true);
     o->sm.initialized = true; o->initialized = true;
 }
+void obj_init(obj_t *o, state_t *states, int nstates, sid start) { obj_init_data(o, states, nstates, start, NULL); }
 
 void obj_state_tick(obj_t *o)
 {

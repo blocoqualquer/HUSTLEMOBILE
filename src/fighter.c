@@ -725,3 +725,12 @@ __attribute__((weak)) int state_hold_restart(fighter_t *f, state_t *s)
     if (xp_find(&s->d, "dir_x") && xp_int(&s->d, "air", 0)) return f->air_movements_left > 0 ? fighter_name_id(f, "AirDashForward") : f->st_fall;
     return s->d.cs ? s->cs.hold_restart : -1;
 }
+
+/* BaseChar.projectile_free_cancel */
+void fighter_projectile_free_cancel(fighter_t *f)
+{
+    state_t *s = f->o.sm.cur;
+    if (!s->d.cs || !s->cs.can_feint_if_possible) return;
+    if (f->got_blocked || f->got_parried) return;
+    f->feinting = true;
+}

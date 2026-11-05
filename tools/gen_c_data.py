@@ -13,6 +13,7 @@ def fxs(v):
     except ValueError: return '0'      # valor nao numerico no .tscn (ex.: "False" num ThrowBox): o original tambem nao o usa
 def b(v): return '1' if v else '0'
 def i(v): return str(int(v))
+PJ_FLAGS = ['immunity_susceptible', 'roll_immunity_susceptible', 'deletes_other_projectiles', 'fizzle_on_ceiling', 'movable', 'can_be_hit_by_melee', 'hit_by_self_projectiles', 'hit_cancel_on_hit', 'free_cancel_on_hit', 'apply_hitlag_when_hit_by_melee', 'projectile_immune', 'hookable', 'has_projectile_parry_window', 'always_parriable', 'damages_own_team']
 def cname(s): return re.sub(r'\W', '_', s)
 
 def fnv1a(s):
@@ -101,6 +102,10 @@ def main(jpath, cid, out, root=None):
         nm = nm.strip()
         if nm not in names: names.append(nm)
         return names.index(nm)
+    is_proj = 'immunity_susceptible' in nodes['.']['props']
+    def sidh(name):      # estado de hit: em projetil o sid e o id interno do nome (o motor traduz para o alvo)
+        if not name: return -1
+        return sid[name] if name in sid else (nid(name) if is_proj else -1)
     for nm in ('OffensiveBurst', 'InstantCancel', 'GroundedDefense', 'AerialDefense', 'GroundedGrab', 'AerialGrab', 'Wait', 'Fall', 'BusyNormal', 'BusyHurt', 'Normal', 'All'):
         nid(nm)
     extra = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'extra_names.txt')
@@ -151,7 +156,7 @@ def main(jpath, cid, out, root=None):
                      ('increment_combo', b(p['increment_combo'])), ('hits_otg', b(p['hits_otg'])), ('hits_vs_standing', b(p['hits_vs_standing'])),
                      ('hits_vs_grounded', b(p['hits_vs_grounded'])), ('hits_vs_aerial', b(p['hits_vs_aerial'])), ('can_counter_hit', b(p['can_counter_hit'])),
                      ('di_modifier', fxs(p['di_modifier'])), ('sdi_modifier', fxs(p['sdi_modifier'])), ('meter_gain_modifier', fxs(p['meter_gain_modifier'])),
-                     ('parry_meter_gain', i(p['parry_meter_gain'])), ('ignore_armor', b(p['ignore_armor'])), ('followup_state', i(sidof(p['followup_state']))),
+                     ('parry_meter_gain', i(p['parry_meter_gain'])), ('ignore_armor', b(p['ignore_armor'])), ('followup_state', i(sidh(p['followup_state']))),
                      ('force_grounded', b(p['force_grounded'])), ('can_clash', b(p['can_clash'] and p['hitbox_type'] != 6)), ('hits_vs_dizzy', b(p['hits_vs_dizzy'])),
                      ('beats_grab', b(p['beats_grab'])), ('hits_projectiles', b(p['hits_projectiles'])), ('ignore_projectile_armor', b(p['ignore_projectile_armor'])),
                      ('allowed_to_hit_own_team', b(p['allowed_to_hit_own_team'])), ('guard_break', b(p['guard_break'])), ('guard_break_proration', i(p['guard_break_proration'])),
@@ -162,7 +167,7 @@ def main(jpath, cid, out, root=None):
                      ('dir_x', fxs(p['dir_x'])), ('dir_y', fxs(p['dir_y'])), ('knockback', fxs(p['knockback'])), ('launch_reversible', b(p['launch_reversible'])),
                      ('vacuum', b(p['vacuum'])), ('send_away_from_center', b(p['send_away_from_center'])), ('block_pushback_modifier', fxs(p['block_pushback_modifier'])),
                      ('block_pushback_reversible', b(p['block_pushback_reversible'])), ('block_reverse_pushback_modifier', fxs(p['block_reverse_pushback_modifier'])),
-                     ('pushback_x', fxs(p['pushback_x'])), ('grounded_hit_state', i(sidof(p['grounded_hit_state']))), ('aerial_hit_state', i(sidof(p['aerial_hit_state']))),
+                     ('pushback_x', fxs(p['pushback_x'])), ('grounded_hit_state', i(sidh(p['grounded_hit_state']))), ('aerial_hit_state', i(sidh(p['aerial_hit_state']))),
                      ('minimum_grounded_frames', i(p['minimum_grounded_frames'])), ('knockdown', b(p['knockdown'])), ('knockdown_extends_hitstun', b(p['knockdown_extends_hitstun'])),
                      ('hard_knockdown', b(p['hard_knockdown'])), ('disable_collision', b(p['disable_collision'])), ('air_ground_bounce', b(p['air_ground_bounce'])),
                      ('ground_bounce', b(p['ground_bounce'])), ('ground_bounce_knockback_modifier', fxs(p['ground_bounce_knockback_modifier'])), ('wall_slam', b(p['wall_slam'])),
@@ -257,6 +262,12 @@ def main(jpath, cid, out, root=None):
     L.append('const chardata_t chardata_%s = {"%s", %d, states_%s, %d, anims_%s, %d, names_%s, %s, %s, %s, %s, %s, %s, %s, %s};' % (
         cid, cid, len(states), cid, len(anim_names), cid, len(names), cid, fxs(root['gravity']), fxs(root['ground_friction']), fxs(root['air_friction']),
         fxs(root['max_ground_speed']), fxs(root['max_air_speed']), fxs(root['max_fall_speed']), bx(hb), bx(cb)))
+    if 'immunity_susceptible' in root:      # BaseProjectile: propriedades do objeto
+        rs = nodes['.'].get('script') or ''
+        vtn = 'vtp_' + cname(rs.replace('res://', '').replace('.gd', ''))
+        L.insert(1, 'extern const struct proj_vt_s %s __attribute__((weak));' % vtn)
+        pj = '{1, %s, %s, &%s}' % (', '.join(b(root.get(k)) for k in PJ_FLAGS), fxs(root.get('hitlag_modifier', '1.0')), vtn)
+        L[-1] = L[-1][:-2] + ', ' + pj + '};'
     open(out, 'w').write('\n'.join(L) + '\n')
     print('%s: %d estados, %d animacoes, %d bytes de C' % (cid, len(states), len(anim_names), os.path.getsize(out)))
 

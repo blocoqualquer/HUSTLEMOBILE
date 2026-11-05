@@ -1,5 +1,6 @@
 /* Porte de game.gd: tick(), prioridade de porta, colisoes, apply_hitboxes. Objetos extras: projectile.c (futuro). */
 #include "game.h"
+#include "projectile.h"
 #include <stdlib.h>
 
 static inline int iabs(int n) { return n < 0 ? -n : n; }
@@ -15,7 +16,7 @@ void game_init(game_t *g, fighter_t *p1, fighter_t *p2)
 {
     g->p[0] = p1; g->p[1] = p2;
     g->current_tick = 0; g->time = 3000; g->stage_width = 1000; g->max_char_distance = 600;
-    g->ceiling_height = 400; g->has_ceiling = true; g->game_finished = false; g->nobjs = 0;
+    g->ceiling_height = 400; g->has_ceiling = true; g->game_finished = false; g->nobjs = 0; g->next_uid = 3;
     p1->stage_width = p2->stage_width = g->stage_width;
     (void)eng_opp_game;
 }
@@ -199,8 +200,53 @@ static void apply_hitboxes(game_t *g, fighter_t *px1, fighter_t *px2)
             }
         }
     }
-    (void)hittable; (void)g;
-    /* objetos extras (projeteis): projectile.c */
+    /* objetos (projeteis): hitboxes vs lutadores e entre si */
+    typedef struct { hitbox_t *hb; obj_t *victim; } pair_t;
+    pair_t to_obj[64], to_player[64]; int nto = 0, ntp = 0;
+    bool obj_vs_obj = false, player_hit_obj = false, obj_hit_player = false;
+    fighter_t *pls[2] = { px1, px2 };
+    for (int i = 0; i < g->nobjs; i++) {
+        obj_t *o = g->objs[i];
+        if (o->disabled) continue;
+        hitbox_t *oh[32]; int on = obj_active_hitboxes(o, oh, 32);
+        for (int k = 0; k < on; k++) box_update_position(&oh[k]->box, phys_x(&o->chara), phys_y(&o->chara));
+    }
+    for (int i = 0; i < g->nobjs; i++) {
+        obj_t *o = g->objs[i];
+        if (o->disabled) continue;
+        const projdef_t *pj = &PROJ(o)->cd->pj;
+        hitbox_t *oh[32]; int on = obj_active_hitboxes(o, oh, 32);
+        if (hittable) {
+            for (int pi = 0; pi < 2; pi++) {
+                fighter_t *p = pls[pi];
+                if (o->id == p->o.id && !pj->damages_own_team) continue;
+                hitbox_t *ph[32]; int pn = obj_active_hitboxes(&p->o, ph, 32);
+                hitbox_t *by = colliding_hitbox(ph, pn, o);
+                if (by && (pj->can_be_hit_by_melee || by->def->hitbox_type == HB_DETECT) && nto < 64) {
+                    player_hit_obj = true; to_obj[nto].hb = by; to_obj[nto++].victim = o;
+                }
+                if (p->o.projectile_invulnerable) {
+                    if (pj->immunity_susceptible) continue;
+                    if (p->o.roll_projectile_invulnerable && pj->roll_immunity_susceptible) continue;
+                }
+                hitbox_t *hit = colliding_hitbox(oh, on, &p->o);
+                if (hit && ntp < 64) { to_player[ntp].hb = hit; to_player[ntp++].victim = &p->o; obj_hit_player = true; }
+            }
+        }
+        int opp_id = (o->id % 2) + 1;
+        if (!pj->projectile_immune) {
+            for (int j = 0; j < g->nobjs; j++) {
+                obj_t *q = g->objs[j];
+                if (q->disabled) continue;
+                if (!(q->id == opp_id || (pj->hit_by_self_projectiles && q != o))) continue;
+                hitbox_t *qh[32]; int qn = obj_active_hitboxes(q, qh, 32);
+                hitbox_t *by = colliding_hitbox(qh, qn, o);
+                if (by && nto < 64) { obj_vs_obj = true; to_obj[nto].hb = by; to_obj[nto++].victim = o; }
+            }
+        }
+    }
+    if (obj_vs_obj || player_hit_obj) for (int i = 0; i < nto; i++) eng_hitbox_hit(to_obj[i].hb, to_obj[i].victim);
+    if (obj_hit_player) for (int i = 0; i < ntp; i++) eng_hitbox_hit(to_player[i].hb, to_player[i].victim);
 }
 
 /* ---- tick ---- */
@@ -208,12 +254,21 @@ static void apply_hitboxes(game_t *g, fighter_t *px1, fighter_t *px2)
 void game_tick(game_t *g)
 {
     fighter_t *p1 = g->p[0], *p2 = g->p[1];
+    game_reclaim_husks(g);
     for (int i = 0; i < g->nobjs; i++) {
         obj_t *o = g->objs[i];
         if (o->disabled) continue;
+        if (!o->initialized) game_init_objects(g);
         obj_tick(o);
-        int x = phys_x(&o->chara);
+        const proj_vt_t *pv = PROJ(o)->cd->pj.vt;
+        if (pv && pv->tick) pv->tick(o);
+        int x = phys_x(&o->chara), y = phys_y(&o->chara);
         if (x < -g->stage_width) set_x(o, -g->stage_width); else if (x > g->stage_width) set_x(o, g->stage_width);
+        if (g->has_ceiling && y <= -g->ceiling_height) {
+            set_y(o, -g->ceiling_height);
+            if (PROJ(o)->cd->pj.fizzle_on_ceiling) proj_disable(o);
+            if (pv && pv->on_hit_ceiling) pv->on_hit_ceiling(o);
+        }
     }
     g->current_tick++;
     p1->o.current_tick = p2->o.current_tick = g->current_tick;
@@ -225,6 +280,7 @@ void game_tick(game_t *g)
     fighter_update_advantage(pl[0]); fighter_update_advantage(pl[1]);
     fighter_tick(pl[0]); fighter_tick(pl[1]);
     resolve_same_x(g);
+    game_init_objects(g);
     resolve_collisions(g, pl[0], pl[1], 0);
     apply_hitboxes(g, pl[0], pl[1]);
     if ((p1->o.state_interruptable || p1->dummy_interruptable) && !p1->busy_interrupt) fighter_reset_combo(p2);

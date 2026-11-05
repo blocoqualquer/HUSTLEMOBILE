@@ -1,6 +1,7 @@
 /* Combate do lutador: snapshot do golpe (HitboxData), hit_by, launched_by, bloqueio/parry, Hitbox.hit.
  * Fonte: BaseChar.gd 1481-1600, 1608-2100; mechanics/HitboxData.gd; mechanics/Hitbox.gd (get_real_*, is_counter_hit, hit). */
 #include "fighter.h"
+#include "projectile.h"
 #include <string.h>
 
 static inline fx fxi(int v) { return FX_INT(v); }
@@ -482,10 +483,26 @@ void eng_hitbox_hit(hitbox_t *hb, obj_t *victim)
     if (!(!(victim->is_fighter && fighter_is_otg(victim->fighter)) || d->hits_otg)) return;
     hitbox_save_hit(hb, victim->uid);
     if (d->hitbox_type == HB_DETECT) { eng_host_detect(hb->host, victim); return; }
-    if (!victim->is_fighter) return;           /* projeteis como alvo: projectile.c (hit_by do projetil) */
+    if (!victim->is_fighter) {                 /* projetil como alvo: BaseProjectile.hit_by + empurrao + hit_something do hospedeiro */
+        obj_t *host = hb->host;
+        if (obj_is_proj(victim)) proj_hit_by(victim, hb);
+        fx pm = fx_mul(host->is_fighter ? fxi(host->fighter->hitstun_decay_combo_count) : 0, 26214 /* 0.4 */);
+        fx pb = fx_div(fx_mul(d->pushback_x + pm, -FX_ONE), fxi(2));
+        phys_add_pushback(&host->chara, pb);
+        phys_add_pushback(&victim->chara, pb);
+        if (host->is_fighter) cs_on_hit_something(host->fighter, host->sm.cur, victim, hb);
+        else if (host->sm.cur && host->sm.cur->d.vt && host->sm.cur->d.vt->hit_something) host->sm.cur->d.vt->hit_something(host, host->sm.cur, victim, hb);
+        return;
+    }
     fighter_t *vf = victim->fighter;
     hitdata_t hd;
     fighter_hit_data(&hd, hb);
+    if (obj_is_proj(hb->host)) {           /* sids do projetil -> sids do alvo (tabelas de nomes diferentes) */
+        const char *const *nm = PROJ(hb->host)->cd->names; int nn = PROJ(hb->host)->cd->nnames;
+        if (hd.grounded_hit_state >= 0 && hd.grounded_hit_state < nn) hd.grounded_hit_state = fighter_name_id(vf, nm[hd.grounded_hit_state]);
+        if (hd.aerial_hit_state >= 0 && hd.aerial_hit_state < nn) hd.aerial_hit_state = fighter_name_id(vf, nm[hd.aerial_hit_state]);
+        if (hd.followup_state >= 0 && hd.followup_state < nn) hd.followup_state = fighter_name_id(vf, nm[hd.followup_state]);
+    }
     fighter_hit_by(vf, &hd, false);
     bool can_hit = true;
     obj_t *host = hb->host;
@@ -506,5 +523,6 @@ void eng_hitbox_hit(hitbox_t *hb, obj_t *victim)
         phys_add_pushback(&victim->chara, pb);
         if (vf->opponent && &vf->opponent->o != host) phys_add_pushback(&vf->opponent->o.chara, pb);
         if (host->is_fighter) cs_on_hit_something(host->fighter, host->sm.cur, victim, hb);
+        else if (host->sm.cur && host->sm.cur->d.vt && host->sm.cur->d.vt->hit_something) host->sm.cur->d.vt->hit_something(host, host->sm.cur, victim, hb);
     }
 }

@@ -27,6 +27,8 @@ typedef struct {
     sid  (*frame_shared)(obj_t *, state_t *, int tick);   /* _frame_N_shared */
     sid  (*frame)(obj_t *, state_t *, int tick);          /* _frame_N */
     sid  (*animation_finished)(obj_t *, state_t *);
+    void (*hit_something)(obj_t *, state_t *, obj_t *victim, hitbox_t *);   /* _on_hit_something (hospedeiro nao-lutador) */
+    void (*got_parried)(obj_t *, state_t *);                                /* _got_parried */
 } state_vt_t;
 
 
@@ -155,6 +157,7 @@ void obj_state_exit_shared(obj_t *o, state_t *s);
 
 /* BaseObj */
 void obj_init(obj_t *o, state_t *states, int nstates, sid start);
+void obj_init_data(obj_t *o, state_t *states, int nstates, sid start, void *data);
 void obj_tick(obj_t *o);
 void obj_state_tick(obj_t *o);          /* BaseObj.state_tick */
 void obj_change_state(obj_t *o, sid st, void *data);
