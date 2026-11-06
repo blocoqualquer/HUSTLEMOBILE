@@ -75,6 +75,25 @@ int main(void)
     run(20);
     printf("caltrops: objs=%d\n", g.nobjs);
     assert(g.nobjs >= 3);
+
+    /* QuickSlash: atravessa e acerta B */
+    reset(-60, 40);
+    qs_data_t qd = { { 100, 0 }, 0 };
+    A.supers_available = 3; A.super_meter = 1000;
+    act(&A, "QuickSlash", &qd);
+    run(30);
+    printf("quickslash: x A=%d hp B=%d estado=%s\n", phys_x(&A.o.chara), B.hp, nm(&A));
+    assert(phys_x(&A.o.chara) > 20);
+
+    /* DiveKick no ar */
+    reset(-100, 100);
+    A.o.chara.grounded = false; A.o.chara.py = FX_INT(-60);
+    xy_data_t dk = { 100, 100 };
+    act(&A, "DiveKick", &dk);
+    run(40);
+    printf("divekick: y=%d estado=%s\n", phys_y(&A.o.chara), nm(&A));
+    assert(phys_x(&A.o.chara) > -100);
+
     puts("ninja ok");
     return 0;
 }

@@ -151,7 +151,7 @@ static hitbox_t *colliding_hitbox(hitbox_t **hbs, int n, obj_t *victim)
             if (!can_be_thrown) { if (vf && vf->blockstun_ticks > 0) hitbox_save_hit(h, victim->uid); continue; }
             if (vf && vf->wakeup_throw_immunity_ticks > 0) continue;
         }
-        if ((!d->hits_vs_aerial && !grounded) || (!d->hits_vs_grounded && grounded)) continue;
+        if ((!d->hits_vs_aerial && !grounded) || (!h->hits_vs_grounded && grounded)) continue;
         if (!otg && !d->hits_vs_standing) continue;
         if (otg && !d->hits_otg) continue;
         if (!vf && !d->hits_projectiles) continue;
@@ -193,7 +193,7 @@ static void apply_hitboxes(game_t *g, fighter_t *px1, fighter_t *px2)
             hitbox_t *tb = p1_throwing ? p2_by : p1_by;
             if (t1 && t2) { sm_queue_state(&px1->o, tech, NULL); sm_queue_state(&px2->o, tech, NULL); hittable = false; }
             bool can_hit = true;
-            if (victim->o.chara.grounded && !tb->def->hits_vs_grounded) can_hit = false;
+            if (victim->o.chara.grounded && !tb->hits_vs_grounded) can_hit = false;
             if (!victim->o.chara.grounded && !tb->def->hits_vs_aerial) can_hit = false;
             if (!hittable) can_hit = false;
             if (can_hit) {

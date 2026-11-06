@@ -9,6 +9,7 @@ void hitbox_init(hitbox_t *h, const hitbox_def_t *d, obj_t *host)
     h->damage = d->damage; h->hitstun_ticks = d->hitstun_ticks; h->priority = d->priority;
     h->combo_hitstun_ticks = d->combo_hitstun_ticks == -1 ? d->hitstun_ticks : d->combo_hitstun_ticks;
     h->victim_hitlag = d->victim_hitlag; h->combo_victim_hitlag = d->combo_victim_hitlag;
+    h->hits_vs_grounded = d->hits_vs_grounded;
     h->knockback = d->knockback; h->dir_x = d->dir_x; h->dir_y = d->dir_y; h->hit_height = d->hit_height;
     h->cancellable = d->cancellable; h->block_cancel_allowed = d->block_cancel_allowed; h->block_punishable = d->block_punishable;
     h->tick = 1; h->active = h->enabled = h->played_whiff_sound = false; h->nhit = 0;

@@ -237,7 +237,9 @@ static void hook_got_parried(obj_t *self) { proj_disable(self); }
 static void hook_on_disable(obj_t *self) { proj_t *p = PROJ(self); if (p->owner) NJ(p)->hook_uid = -1; }
 const proj_vt_t vtp_characters_stickman_projectiles_grappling_hook = { .tick = hook_tick, .on_got_parried = hook_got_parried, .on_disable = hook_on_disable };
 
-static void hook_unlock(obj_t *self)
+void ninja_hook_unlock(obj_t *self);
+static void hook_unlock(obj_t *self) { ninja_hook_unlock(self); }
+void ninja_hook_unlock(obj_t *self)
 {
     proj_t *p = PROJ(self);
     if (p->is_locked) {
@@ -402,3 +404,7 @@ static sid ssk_tick(obj_t *o, state_t *s)
     return SID_NONE;
 }
 const state_vt_t vt_characters_stickman_projectiles_fireball_states_StickmanSummonSlideKick = { .tick = ssk_tick };
+
+extern const chardata_t chardata_ninja_StickyBomb, chardata_ninja_grappling_hook;
+bool ninja_obj_is_bomb(obj_t *o) { return !o->is_fighter && PROJ(o)->cd == &chardata_ninja_StickyBomb; }
+bool ninja_obj_is_hook(obj_t *o) { return !o->is_fighter && PROJ(o)->cd == &chardata_ninja_grappling_hook; }

@@ -7,6 +7,7 @@ sid land_frame(obj_t *, state_t *, int);  sid land_tick(obj_t *, state_t *);
 sid taunt_frame(obj_t *, state_t *, int);
 sid th_enter(obj_t *, state_t *);  sid th_frame_shared(obj_t *, state_t *, int);  sid th_tick_shared(obj_t *, state_t *);
 sid th_tick_after(obj_t *, state_t *);  void th_exit(obj_t *, state_t *);
+void cs_exit_shared(obj_t *, state_t *);
 #define VT_IDLE .enter = idle_enter, .tick = idle_tick
 #define VT_LANDING .frame = land_frame, .tick = land_tick
 #define VT_THROWSTATE .enter = th_enter, .frame_shared = th_frame_shared, .tick_shared = th_tick_shared, .tick_after = th_tick_after, .exit = th_exit

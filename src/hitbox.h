@@ -69,6 +69,7 @@ typedef struct hitbox_s {
     int hit_objects[HB_MAX_HIT_OBJECTS]; int nhit;       /* uid dos objetos ja atingidos */
     struct hitbox_s **group; int ngroup;                 /* hitboxes do mesmo grupo no estado (inclui este) */
     obj_t *host;
+    uint8_t hits_vs_grounded;         /* mutavel em runtime (DiveKick) */
     int throw_state;                  /* copia mutavel (Grab troca o estado de arremesso em runtime) */
 } hitbox_t;
 

@@ -23,4 +23,9 @@ enum { NX_EXPLODE = 1 << 0, NX_PULL = 1 << 1, NX_DETACH = 1 << 2, NX_RELEASE = 1
 
 void ninja_detach(fighter_t *f);
 void ninja_explode_sticky_bomb(fighter_t *f);
+void ninja_hook_unlock(obj_t *self);
+bool ninja_obj_is_bomb(obj_t *o);
+bool ninja_obj_is_hook(obj_t *o);
+/* data do QuickSlash: {Direction:{x,y}, Attack:{id}} */
+typedef struct { xy_data_t dir; int attack; } qs_data_t;
 #endif
