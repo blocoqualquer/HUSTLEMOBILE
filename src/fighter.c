@@ -107,6 +107,11 @@ static int meter_gain_modified(const fighter_t *f, int amount)
     if (f->penalty <= 0) pen = fx_div(pen, fxi(5));
     return (int)fx_round(fx_mul(FX_ONE - pen, fxi(amount)));
 }
+static int meter_gain_modified_v(fighter_t *f, int amount)
+{
+    int m = meter_gain_modified(f, amount);
+    return f->vt && f->vt->meter_gain_modified ? f->vt->meter_gain_modified(f, m) : m;
+}
 
 void fighter_gain_super_meter_raw(fighter_t *f, int amount)
 {
@@ -127,7 +132,7 @@ void fighter_gain_super_meter(fighter_t *f, int amount, fx stale_amount)
 {
     int full = combo_stale_meter(f, amount);
     amount = (int)fx_round(fx_lerp(fxi(amount), fxi(full), stale_amount));
-    amount = meter_gain_modified(f, amount);
+    amount = meter_gain_modified_v(f, amount);
     fx den = fx_powu(fxi(2), (unsigned)f->combo_supers);
     int modded = (int)fx_round(fx_div(fxi(amount), den));
     amount = (int)fx_round(fx_lerp(fxi(amount), fxi(modded), stale_amount));
@@ -248,6 +253,7 @@ static void fighter_reset_combo_base(fighter_t *f)
 
 void fighter_incr_combo(fighter_t *f, bool scale, bool projectile, bool force, int combo_scale_amount)
 {
+    if (f->vt && f->vt->on_incr_combo) f->vt->on_incr_combo(f);
     if ((scale && (!f->melee_attack_combo_scaling_applied || projectile)) || force) {
         f->combo_count += combo_scale_amount;
         f->o.combo_count = f->combo_count;
@@ -420,6 +426,7 @@ static bool fighter_state_usable_base(fighter_t *f, state_t *s)
     if (c->combo_only && f->combo_count < 1) return false;
     if (c->neutral_only && f->combo_count >= 1) return false;
     if (f->supers_available < c->super_level) return false;
+    if (xp_find(&s->d, "is_super") && xp_int(&s->d, "is_super", 0) && f->supers_available < xp_int(&s->d, "super_level", 1)) return false;   /* RobotState */
     return state_usable_extra(f, s);
 }
 
@@ -617,6 +624,7 @@ static void fighter_tick_base(fighter_t *f)
     aabb_t cb = box_aabb(&o->collision_box);
     if (cb.x1 <= -f->stage_width && f->last_vel.x < 0) f->touching_wall = true;
     if (cb.x2 >= f->stage_width && f->last_vel.x > 0) f->touching_wall = true;
+    if (!o->chara.grounded) f->last_aerial_vel = f->last_vel;
     if (!(s->d.kind == KIND_PARRY_OLD || s->d.kind == KIND_PARRY_NEW)) f->parried_last_state = false;
     f->used_buffer = false;
     f->grounded_last_frame = o->chara.grounded;
@@ -746,6 +754,14 @@ void fighter_projectile_free_cancel(fighter_t *f)
     f->feinting = true;
 }
 
+void fighter_emit_got_hit_by(fighter_t *f, const hitdata_t *h)
+{
+    fighter_emit_got_hit(f);
+    if (h && h->host && h->host->is_fighter && f->vt && f->vt->on_got_hit_by_fighter) f->vt->on_got_hit_by_fighter(f);
+}
+void fighter_on_state_exited(obj_t *o, state_t *s) { fighter_t *f = o->fighter; if (f && f->vt && f->vt->on_state_exited) f->vt->on_state_exited(f, s); }
+void fighter_gain_air_option_bar(fighter_t *f, int a) { f->air_option_bar += a; if (f->air_option_bar > f->air_option_bar_max) f->air_option_bar = f->air_option_bar_max; }
+void fighter_drain_air_option_bar(fighter_t *f, int a) { if (f->infinite_resources) return; f->air_option_bar -= a; if (f->air_option_bar < 0) f->air_option_bar = 0; }
 void fighter_emit_got_hit(fighter_t *f) { if (f->vt && f->vt->on_got_hit) f->vt->on_got_hit(f); }
 
 void obj_apply_forces(obj_t *o)

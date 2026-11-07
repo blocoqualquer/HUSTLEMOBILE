@@ -100,8 +100,8 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     o->hitlag_ticks = d->hitlag_ticks;
     o->disable_collision = d->disable_collision;
     o->knockdown = d->knockdown;
-    o->aerial_hit_state = d->aerial_hit_state; o->grounded_hit_state = d->grounded_hit_state;
-    o->ground_bounce = d->ground_bounce; o->throw_ = d->is_throwbox;
+    o->aerial_hit_state = h->aerial_hit_state; o->grounded_hit_state = h->grounded_hit_state;
+    o->ground_bounce = h->ground_bounce; o->throw_ = d->is_throwbox;
     o->hard_knockdown = d->hard_knockdown; o->force_grounded = d->force_grounded; o->wall_slam = d->wall_slam;
     o->reversible = d->launch_reversible;
     o->pos_x = h->box.pos_x + box_x_facing(&h->box); o->pos_y = h->box.pos_y + h->box.y;
@@ -112,20 +112,20 @@ void fighter_hit_data(hitdata_t *o, const hitbox_t *h)
     o->combo_count = c ? c->combo_count : 0;
     o->screenshake_amount = d->screenshake_amount; o->screenshake_frames = d->screenshake_frames;
     o->counter_hit = is_counter_hit(h);
-    o->minimum_damage = d->minimum_damage; o->sdi_modifier = d->sdi_modifier; o->di_modifier = d->di_modifier;
-    o->increment_combo = d->increment_combo; o->ignore_armor = d->ignore_armor; o->damage_proration = d->damage_proration;
+    o->minimum_damage = h->minimum_damage; o->sdi_modifier = h->sdi_modifier; o->di_modifier = d->di_modifier;
+    o->increment_combo = h->increment_combo; o->ignore_armor = d->ignore_armor; o->damage_proration = d->damage_proration;
     o->parry_meter_gain = d->parry_meter_gain; o->hitbox_type = d->hitbox_type;
-    o->damage_in_combo = d->damage_in_combo;
+    o->damage_in_combo = h->damage_in_combo;
     if (o->damage_in_combo == -1) o->damage_in_combo = o->damage;
     o->hits_vs_dizzy = d->hits_vs_dizzy; o->meter_gain_modifier = d->meter_gain_modifier;
     o->air_ground_bounce = d->air_ground_bounce; o->scale_combo = d->scale_combo; o->plus_frames = d->plus_frames;
     o->vacuum = d->vacuum; o->send_away_from_center = d->send_away_from_center;
     o->minimum_grounded_frames = d->minimum_grounded_frames;
     o->chip_damage_modifier = d->chip_damage_modifier; o->block_pushback_modifier = d->block_pushback_modifier;
-    o->hits_vs_standing = d->hits_vs_standing; o->combo_scaling_amount = d->combo_scaling_amount;
+    o->hits_vs_standing = d->hits_vs_standing; o->combo_scaling_amount = h->combo_scaling_amount;
     o->ground_bounce_knockback_modifier = d->ground_bounce_knockback_modifier;
     o->hits_projectiles = d->hits_projectiles; o->cancellable = h->cancellable;
-    o->followup_state = d->followup_state;
+    o->followup_state = h->followup_state;
     o->guard_break = d->guard_break; o->parriable = d->parriable; o->block_punishable = h->block_punishable;
     o->looping = d->looping; o->ignore_projectile_armor = d->ignore_projectile_armor; o->block_cancel_allowed = h->block_cancel_allowed;
     o->allowed_to_hit_own_team = d->allowed_to_hit_own_team; o->block_pushback_reversible = d->block_pushback_reversible;
@@ -210,7 +210,7 @@ void fighter_launched_by(fighter_t *f, hitdata_t *hin)
 {
     obj_t *o = &f->o;
     hitdata_t *h = ring_push(f, hin);
-    fighter_emit_got_hit(f);
+    fighter_emit_got_hit_by(f, h);
     if (f->super_meter_used_recently > 0) {
         fighter_gain_super_meter_raw(f, f->super_meter_used_recently / SUPER_METER_GRACE_DIVISOR);
         f->super_meter_used_recently = 0; f->super_meter_grace_ticks = 0;
@@ -227,7 +227,7 @@ void fighter_launched_by(fighter_t *f, hitdata_t *hin)
     bool projectile = !host->is_fighter;
 
     bool autoblock = f->vt && f->vt->has_autoblock_armor && f->vt->has_autoblock_armor(f);
-    bool armor = f->has_hyper_armor;
+    bool armor = f->vt && f->vt->has_armor ? f->vt->has_armor(f) : f->has_hyper_armor;
     bool proj_armor = f->has_projectile_armor;
     bool will_launch = h->ignore_armor || !armor;
     if (!h->ignore_armor && projectile && proj_armor && !h->ignore_projectile_armor) will_launch = false;
@@ -267,7 +267,8 @@ void fighter_launched_by(fighter_t *f, hitdata_t *hin)
 void fighter_thrown_by(fighter_t *f, hitdata_t *h)
 {
     (void)h;
-    fighter_emit_got_hit(f);
+    fighter_emit_got_hit_by(f, h);
+    if (f->vt && f->vt->on_launched) f->vt->on_launched(f);      /* on_grabbed */
     sm_change_state(&f->o, f->st_grabbed, NULL, true, true);
 }
 
@@ -294,7 +295,7 @@ void fighter_hit_by(fighter_t *f, hitdata_t *h, bool force_hit)
             fighter_take_damage(f, ref->combo_count <= 0 ? h->damage : h->damage_in_combo, 0, FX_ONE, 0, FX_ONE, self_hit, false);
             break; }
         case HB_FLIP:
-            fighter_emit_got_hit(f);
+            fighter_emit_got_hit_by(f, h);
             f->o.chara.facing = -f->o.chara.facing;
             f->o.chara.vx = -f->o.chara.vx;
             obj_update_boxes(o);
@@ -302,7 +303,7 @@ void fighter_hit_by(fighter_t *f, hitdata_t *h, bool force_hit)
             fighter_take_damage(f, h->combo_count > 0 ? h->damage_in_combo : h->damage, h->minimum_damage, h->meter_gain_modifier, 0, FX_ONE, self_hit, false);
             break;
         case HB_THROWHIT:
-            fighter_emit_got_hit(f);
+            fighter_emit_got_hit_by(f, h);
             fighter_apply_hitlag(f, h);
             fighter_apply_hitlag(f->opponent, h);
             fighter_take_damage(f, h->combo_count > 0 ? h->damage_in_combo : h->damage, h->minimum_damage, h->meter_gain_modifier, 0, FX_ONE, self_hit, false);
@@ -383,7 +384,7 @@ void fighter_block_hitbox(fighter_t *f, hitdata_t *h, bool force_parry, bool for
 
     if (!projectile) {
         op->feinting = false;
-        if (!perfect) { op->got_blocked = true; if (op->vt && op->vt->on_attack_blocked) { /* on_blocked_melee_attack e hook do atacante */ } }
+        if (!perfect) { op->got_blocked = true; if (op->vt && op->vt->on_blocked_melee_attack) op->vt->on_blocked_melee_attack(op); }
         else { op->got_parried = true; if (csd(op->o.sm.cur)) op->o.sm.cur->cs.interruptible_on_opponent_turn = 0; op->o.hitlag_ticks += op->o.sm.cur->d.extra_parry_hitlag; if (op->o.sm.cur->d.vt && op->o.sm.cur->d.vt->got_perfect_parried) op->o.sm.cur->d.vt->got_perfect_parried(&op->o, op->o.sm.cur); if (op->vt && op->vt->on_got_parried) op->vt->on_got_parried(op); }
         if (!is_new) op->o.sm.cur->feinting = false;
     }

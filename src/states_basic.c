@@ -27,7 +27,7 @@ sid idle_tick(obj_t *o, state_t *s)
 }
 const state_vt_t vt_characters_states_Idle = { .enter = idle_enter, .tick = idle_tick };
 
-static sid fall_tick(obj_t *o, state_t *s)
+sid fall_tick(obj_t *o, state_t *s)
 {
     obj_apply_grav(o); obj_apply_forces(o);
     if ((s->current_tick > 3 || strcmp(prev_name(o), "Fall") == 0) && o->chara.grounded) return by_name(F(o), "Landing");
@@ -231,7 +231,7 @@ static void jump_do(obj_t *o, state_t *s)
     s->cs.next_state_on_hold = 1; s->cs.next_state_on_hold_on_opponent_turn = 1;
 }
 
-static sid jump_enter(obj_t *o, state_t *s)
+sid jump_enter(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     fighter_set_anim(f, s, "Landing");
@@ -241,7 +241,7 @@ static sid jump_enter(obj_t *o, state_t *s)
     return SID_NONE;
 }
 
-static sid jump_frame(obj_t *o, state_t *s, int t)
+sid jump_frame(obj_t *o, state_t *s, int t)
 {
     fighter_t *f = F(o);
     if (t == 4) { if (s->ustate[JSQUAT] && !jsuper(s)) jump_do(o, s); return SID_NONE; }
@@ -302,7 +302,7 @@ static sid jump_frame(obj_t *o, state_t *s, int t)
     return SID_NONE;
 }
 
-static sid jump_tick(obj_t *o, state_t *s)
+sid jump_tick(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     int jt = s->ustate[JTICK];

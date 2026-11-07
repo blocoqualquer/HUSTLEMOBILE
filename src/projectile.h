@@ -27,7 +27,7 @@ typedef struct proj_s {
     int attached_to, start_y, refresh_amount, return_x, return_y;   /* hook: attached_to = uid (-1 = nenhum); Stackriken */
     bool is_locked, detonating, attached, has_return, whip_parriable;
     fx force_x, force_y;
-    int pad_;
+    int u[8]; fx uf[4];                /* variaveis livres do script raiz (RobotGrenade, Missile...) */
 } proj_t;
 
 /* script raiz do projetil (ex.: Kunai.gd): hooks sobre BaseProjectile */
@@ -38,6 +38,7 @@ typedef struct proj_vt_s {
     void (*tick)(obj_t *self);        /* depois de obj_tick, antes do clamp de palco */
     void (*on_got_parried)(obj_t *self);
     void (*on_disable)(obj_t *self);
+    void (*on_got_blocked)(obj_t *self, fighter_t *by);
 } proj_vt_t;
 
 #define PROJ(o) ((proj_t *)(o))

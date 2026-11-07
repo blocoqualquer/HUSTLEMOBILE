@@ -62,6 +62,8 @@ typedef struct hitbox_s {
     const hitbox_def_t *def;
     box_t box;
     int damage, hitstun_ticks, combo_hitstun_ticks, victim_hitlag, combo_victim_hitlag, priority;   /* mutaveis em runtime pelos scripts */
+    int damage_in_combo, minimum_damage, followup_state;
+    uint8_t increment_combo; fx sdi_modifier;
     uint8_t cancellable, hit_cancellable_dummy, block_cancel_allowed, block_punishable;   /* mutaveis em runtime */
     fx knockback, dir_x, dir_y; int hit_height;           /* mutaveis em runtime (Stackriken, Caltrops) */
     bool active, enabled, played_whiff_sound;
@@ -70,6 +72,8 @@ typedef struct hitbox_s {
     struct hitbox_s **group; int ngroup;                 /* hitboxes do mesmo grupo no estado (inclui este) */
     obj_t *host;
     uint8_t hits_vs_grounded;         /* mutavel em runtime (DiveKick) */
+    int start_tick, active_ticks;     /* mutaveis em runtime (Chainsaw) */
+    uint8_t ground_bounce; int grounded_hit_state, aerial_hit_state, combo_scaling_amount;   /* mutaveis em runtime (ClapJump) */
     int throw_state;                  /* copia mutavel (Grab troca o estado de arremesso em runtime) */
 } hitbox_t;
 

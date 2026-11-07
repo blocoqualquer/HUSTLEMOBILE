@@ -89,6 +89,7 @@ void game_init_objects(game_t *g)
         proj_t *p = PROJ(o);
         obj_init_data(o, p->states, p->cd->nstates, 0, p->spawn_data);
         obj_update_boxes(o);
+        if (p->pj.vt && p->pj.vt->init) p->pj.vt->init(o);
     }
 }
 
@@ -145,7 +146,6 @@ bool eng_proj_always_parriable(obj_t *p) { return PROJ(p)->pj.always_parriable; 
 bool eng_proj_has_parry_window(obj_t *p) { return PROJ(p)->pj.has_projectile_parry_window; }
 void eng_host_got_parried(obj_t *host, fighter_t *by)
 {
-    (void)by;
     if (!obj_is_proj(host)) return;
     proj_got_parried(host);                                   /* _got_parried do estado (sinal da hitbox) */
     state_t *s = host->sm.cur;
@@ -161,6 +161,8 @@ void eng_host_got_blocked(obj_t *host, fighter_t *by)
     state_t *s = host->sm.cur;
     s->was_blocked = true; s->number_of_hits_blocked++;
     if (s->d.vt && s->d.vt->got_blocked) s->d.vt->got_blocked(host, s);
+    const proj_vt_t *pv = PROJ(host)->pj.vt;
+    if (pv && pv->on_got_blocked) pv->on_got_blocked(host, by);
 }
 
 int fighter_name_id_cd(const chardata_t *cd, const char *name)
@@ -179,7 +181,10 @@ void eng_spawn_exported_projectile(obj_t *o, state_t *s)
     if (sd->vt && sd->vt->projectile_pos) sd->vt->projectile_pos(o, s, &x, &y);
     unsigned char buf[32]; size_t n = 0;
     if (sd->vt && sd->vt->projectile_data) n = sd->vt->projectile_data(o, s, buf);
-    proj_t *p = proj_spawn(eng_game_get(), (const chardata_t *)sd->projectile_scene, o, x, y, true, n ? buf : NULL, n, sd->projectile_local_pos);
+    const void *scene = sd->projectile_scene;
+    if (sd->vt && sd->vt->projectile_scene) { const void *alt = sd->vt->projectile_scene(o, s); if (alt) scene = alt; }
+    if (!scene) return;
+    proj_t *p = proj_spawn(eng_game_get(), (const chardata_t *)scene, o, x, y, true, n ? buf : NULL, n, sd->projectile_local_pos);
     if (!p) return;
     if (sd->projectile_match_facing) p->o.chara.facing = o->chara.facing;
     if (sd->vt && sd->vt->process_projectile) sd->vt->process_projectile(o, s, &p->o);

@@ -25,6 +25,7 @@ extern sid  cs_enter_shared(obj_t *, state_t *) __attribute__((weak));
 extern sid  cs_tick_shared(obj_t *, state_t *) __attribute__((weak));
 extern sid  cs_tick_after(obj_t *, state_t *) __attribute__((weak));
 extern void cs_exit_shared(obj_t *, state_t *) __attribute__((weak));
+extern void fighter_on_state_exited(obj_t *, state_t *) __attribute__((weak));
 extern sid  cs_frame_shared(obj_t *, state_t *, int) __attribute__((weak));
 
 state_t *obj_prev_state(obj_t *o) { return o->sm.nstack > 1 ? &o->sm.states[o->sm.stack[o->sm.nstack - 2]] : NULL; }
@@ -49,6 +50,7 @@ void sm_change_state(obj_t *o, sid next, void *data, bool enter, bool exit)
             else obj_state_exit_shared(o, c);
             if (c->d.vt && c->d.vt->exit) c->d.vt->exit(o, c);
             eng_deactivate_hitboxes(o);              /* BaseObj._on_state_exited */
+            if (fighter_on_state_exited) fighter_on_state_exited(o, c);
         }
         c->active = false;
     }
@@ -147,7 +149,9 @@ sid obj_state_tick_shared(obj_t *o, state_t *s)
         if (o->can_update_sprite) update_sprite_frame(o, s);
         int t = s->current_tick;
         if (t == d->sfx_tick) obj_emit(o, EV_SFX, s->id);
-        if (t == d->force_tick && d->has_force) phys_force_rel(c, d->force_x, d->force_y);
+        if (t == d->force_tick && d->has_force) {
+            if (!(d->vt && d->vt->timed_force && d->vt->timed_force(o, s))) phys_force_rel(c, d->force_x, d->force_y);
+        }
         if (t == d->projectile_tick) { obj_emit(o, EV_PROJECTILE, s->id); if (d->projectile_scene) eng_spawn_exported_projectile(o, s); }
         if (t == d->timed_spawn_particle_tick) obj_emit(o, EV_TIMED_PARTICLE, s->id);
         if (t == d->state_screenshake_tick) obj_emit(o, EV_SHAKE, s->id);

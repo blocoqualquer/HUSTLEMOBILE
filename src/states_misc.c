@@ -14,6 +14,7 @@ static void use_burst(fighter_t *f)
 {
     if (--f->bursts_available < 0) f->bursts_available = 0;
     fighter_refresh_air_movements(f);
+    if (f->vt && f->vt->on_use_burst) f->vt->on_use_burst(f);
 }
 static void use_burst_meter(fighter_t *f, int amount)
 {
@@ -166,7 +167,7 @@ const state_vt_t vt_characters_states_AirDash = { .frame = ad_frame, .tick = ad_
 #define R_AIR_FRIC 6554         /* 0.1 */
 #define R_SPEED 557056          /* 8.5 */
 #define R_ACCEL 45875           /* 0.7 */
-static sid roll_enter(obj_t *o, state_t *s)
+sid roll_enter(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     const xy_data_t *d = (const xy_data_t *)s->data;
@@ -183,7 +184,7 @@ static sid roll_enter(obj_t *o, state_t *s)
     o->throw_invulnerable = true; o->projectile_invulnerable = true; o->roll_projectile_invulnerable = true;
     return SID_NONE;
 }
-static sid roll_frame(obj_t *o, state_t *s, int t)
+sid roll_frame(obj_t *o, state_t *s, int t)
 {
     fighter_t *f = F(o);
     const xy_data_t *d = (const xy_data_t *)s->data;
@@ -198,7 +199,7 @@ static sid roll_frame(obj_t *o, state_t *s, int t)
     }
     return SID_NONE;
 }
-static sid roll_tick(obj_t *o, state_t *s)
+sid roll_tick(obj_t *o, state_t *s)
 {
     s->d.custom_x_fric = o->chara.grounded ? R_GROUND_FRIC : R_AIR_FRIC;
     F(o)->colliding_with_opponent = false;
@@ -212,7 +213,7 @@ const state_vt_t vt_characters_states_RollStartup = { .enter = roll_enter, .fram
 #define G_DASH_LAG 4
 #define G_DASH_SPEED (14 << 16)
 #define G_JUMP_HEIGHT (-(10 << 16))
-static sid grab_enter(obj_t *o, state_t *s)
+sid grab_enter(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     s->ustate[0] = 0; s->ustate[1] = 0;            /* dash_lag, dash_momentum_applied */
@@ -236,14 +237,14 @@ static sid grab_enter(obj_t *o, state_t *s)
     if (xp_int(&s->d, "jump_grab", 0)) phys_force_rel(&o->chara, G_DASH_SPEED, G_JUMP_HEIGHT);
     return SID_NONE;
 }
-static sid grab_frame(obj_t *o, state_t *s, int t)
+sid grab_frame(obj_t *o, state_t *s, int t)
 {
     (void)o;
     if (t == 0) s->cs.throw_techable = 1;
     if (t == 9) s->cs.throw_techable = 0;
     return SID_NONE;
 }
-static sid grab_tick(obj_t *o, state_t *s)
+sid grab_tick(obj_t *o, state_t *s)
 {
     phys_fric(&o->chara); if (o->gravity_enabled) obj_apply_grav(o); obj_apply_forces(o);
     if (s->ustate[0] > 0) { s->current_tick = 0; s->ustate[0]--; }
@@ -310,11 +311,12 @@ static void throw_release(fighter_t *f, state_t *s)
     h.damage_in_combo = xp_int(&s->d, "damage_in_combo", -1);
     h.hits_vs_dizzy = true; h.scale_combo = true; h.combo_scaling_amount = 1; h.hits_vs_standing = true;
     h.minimum_grounded_frames = xp_int(&s->d, "minimum_grounded_frames", -1);
-    h.air_ground_bounce = xp_int(&s->d, "air_ground_bounce", 0);
+    h.air_ground_bounce = xp_int(&s->d, "air_ground_bounce", 0) || s->ustate[7];
     h.hits_projectiles = true; h.block_cancel_allowed = true; h.allowed_to_hit_own_team = true; h.parriable = true;
     h.host = &f->o; h.followup_state = -1;
     fighter_hit_by(f->opponent, &h, false);
 }
+void th_release_now(fighter_t *f, state_t *s) { if (!s->ustate[0]) { throw_release(f, s); s->ustate[0] = 1; } }
 
 sid th_frame_shared(obj_t *o, state_t *s, int t)
 {

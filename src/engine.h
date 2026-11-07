@@ -36,6 +36,8 @@ typedef struct {
     size_t (*projectile_data)(obj_t *, state_t *, void *buf);                /* get_projectile_data (0 = null) */
     void (*projectile_pos)(obj_t *, state_t *, int *x, int *y);             /* get_projectile_pos */
     void (*process_projectile)(obj_t *, state_t *, obj_t *proj);            /* process_projectile */
+    const void *(*projectile_scene)(obj_t *, state_t *);                    /* escolhe o chardata do projetil exportado (NULL = padrao) */
+    bool (*timed_force)(obj_t *, state_t *);                                /* apply_timed_force; true = tratou */
     void (*got_blocked)(obj_t *, state_t *);                                /* on_got_blocked do estado */
     void (*got_perfect_parried)(obj_t *, state_t *);                        /* on_got_perfect_parried */
     bool (*usable)(struct fighter_s *, state_t *, bool base);                      /* is_usable() sobrescrito (base = resultado de CharState.is_usable) */

@@ -6,10 +6,12 @@ void hitbox_init(hitbox_t *h, const hitbox_def_t *d, obj_t *host)
     h->throw_state = d->throw_state;
     h->def = d; h->host = host;
     h->box.x = d->x; h->box.y = d->y; h->box.w = d->w < 0 ? -d->w : d->w; h->box.h = d->h < 0 ? -d->h : d->h; h->box.facing = 1;
+    h->followup_state = d->followup_state; h->increment_combo = d->increment_combo; h->sdi_modifier = d->sdi_modifier; h->damage_in_combo = d->damage_in_combo; h->minimum_damage = d->minimum_damage;
     h->damage = d->damage; h->hitstun_ticks = d->hitstun_ticks; h->priority = d->priority;
     h->combo_hitstun_ticks = d->combo_hitstun_ticks == -1 ? d->hitstun_ticks : d->combo_hitstun_ticks;
     h->victim_hitlag = d->victim_hitlag; h->combo_victim_hitlag = d->combo_victim_hitlag;
-    h->hits_vs_grounded = d->hits_vs_grounded;
+    h->hits_vs_grounded = d->hits_vs_grounded; h->ground_bounce = d->ground_bounce; h->grounded_hit_state = d->grounded_hit_state; h->aerial_hit_state = d->aerial_hit_state; h->combo_scaling_amount = d->combo_scaling_amount;
+    h->start_tick = d->start_tick; h->active_ticks = d->active_ticks;
     h->knockback = d->knockback; h->dir_x = d->dir_x; h->dir_y = d->dir_y; h->hit_height = d->hit_height;
     h->cancellable = d->cancellable; h->block_cancel_allowed = d->block_cancel_allowed; h->block_punishable = d->block_punishable;
     h->tick = 1; h->active = h->enabled = h->played_whiff_sound = false; h->nhit = 0;
@@ -44,7 +46,7 @@ void hitbox_tick(hitbox_t *h)
         }
     }
     h->tick++;
-    if (h->tick > d->active_ticks && !d->always_on) hitbox_deactivate(h);
+    if (h->tick > h->active_ticks && !d->always_on) hitbox_deactivate(h);
 }
 
 bool hitbox_already_hit(const hitbox_t *h, int uid)

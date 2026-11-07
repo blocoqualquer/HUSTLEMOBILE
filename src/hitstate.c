@@ -61,7 +61,7 @@ void eng_process_hitboxes(obj_t *o, state_t *s)
     int x = phys_x(&o->chara), y = phys_y(&o->chara);
     for (int i = 0; i < d->nhb; i++) {
         hitbox_t *h = &s->hbr[i];
-        if (h->def->start_tick > 0 && h->def->start_tick == s->current_tick + 1 && h->def->activated) {
+        if (h->start_tick > 0 && h->start_tick == s->current_tick + 1 && h->def->activated) {
             box_update_position(&h->box, x, y);
             h->box.facing = o->chara.facing;
             hitbox_activate(h);

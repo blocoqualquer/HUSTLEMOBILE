@@ -80,6 +80,14 @@ static inline fxv fx_angle_to_vec(fx ang)
     return fxv_make((fx)floor(cos(a) * 65536.0 + 0.5), (fx)floor(sin(a) * 65536.0 + 0.5));
 }
 static inline fx fx_vec_to_angle(fx x, fx y) { return (fx)floor(atan2((double)y, (double)x) * 65536.0 + 0.5); }
+/* lerp_angle (estilo Godot: caminho mais curto) */
+static inline fx fx_lerp_angle(fx a, fx b, fx t)
+{
+    const double TAU = 6.283185307179586;
+    double da = (double)a / 65536.0, db = (double)b / 65536.0, tt = (double)t / 65536.0;
+    double diff = fmod(db - da, TAU), sh = fmod(2.0 * diff, TAU) - diff;
+    return (fx)floor((da + sh * tt) * 65536.0 + 0.5);
+}
 static inline fxv fx_rotate_vec(fxv v, fx ang)
 {
     fxv cs = fx_angle_to_vec(ang);

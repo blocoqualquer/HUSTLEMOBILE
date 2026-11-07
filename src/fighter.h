@@ -59,7 +59,7 @@
 
 typedef struct fighter_s fighter_t;
 typedef struct { bool has_di, has_reverse, reverse; fxv di; int feint;
-                 unsigned cx_has, cx_val; fxv cx_dir; } action_extra_t;   /* cx_*: extras booleanos especificos do personagem (bits) + 1 direcao */   /* feint: -1 ausente, 0/1 */
+                 unsigned cx_has, cx_val; fxv cx_dir, cx_dir2, cx_dir3; } action_extra_t;   /* cx_*: extras booleanos especificos do personagem (bits) + 1 direcao */   /* feint: -1 ausente, 0/1 */
 enum { MISC_IGNORE_CALTROPS = 1, MISC_LAUNCH_CALTROPS = 2, MISC_FREEZE_FORCES = 4 };
 #define FIGHTER_CH_SIZE 384          /* area privada do personagem (ninja_t etc.) */
 
@@ -93,6 +93,7 @@ struct fighter_s {
     int hp, trail_hp, super_meter, supers_available, burst_meter, bursts_available, combo_supers;
     int penalty, penalty_ticks, penalty_buffer, sadness_immunity_ticks;
     int air_movements_left, num_air_movements, feints, num_feints;
+    int air_option_bar, air_option_bar_max;
     bool lose_one_air_option_in_neutral;
     /* combo */
     int combo_count, visible_combo_count, combo_damage, combo_proration, hitstun_decay_combo_count, grounded_hits_taken, wall_slams;
@@ -117,7 +118,7 @@ struct fighter_s {
     _Alignas(8) unsigned char ch[FIGHTER_CH_SIZE];
     const struct fighter_vt_s *vt; const char *const *names; int nnames; const chardata_t *cd;
     /* DI e knockback */
-    fxv current_di, current_nudge, last_vel; fx nudge_amount, min_di_scaling, max_di_scaling, di_modifier, knockback_taken_modifier, damage_taken_modifier;
+    fxv current_di, current_nudge, last_vel, last_aerial_vel; fx nudge_amount, min_di_scaling, max_di_scaling, di_modifier, knockback_taken_modifier, damage_taken_modifier;
     fx global_damage_modifier, global_hitstun_modifier, global_hitstop_modifier, parry_knockback_divisor, parry_combo_scaling, burst_parry_combo_scaling;
     int di_combo_limit, parry_chip_divisor, parry_chip_projectile_divisor;
     int last_pos_x, last_pos_y;
@@ -166,8 +167,21 @@ typedef struct fighter_vt_s {
     void (*reset_combo)(fighter_t *);
     bool (*apply_forces)(fighter_t *);               /* true = tratou (substitui phys_apply_forces) */
     bool (*apply_grav)(fighter_t *);                 /* true = tratou */
+    bool (*has_armor)(fighter_t *);                  /* has_armor() (substitui has_hyper_armor) */
+    void (*on_got_hit_by_fighter)(fighter_t *);
+    void (*on_state_exited)(fighter_t *, state_t *);
+    void (*on_blocked_melee_attack)(fighter_t *);    /* do atacante cujo golpe foi bloqueado */
+    void (*on_hit_something)(fighter_t *, obj_t *victim);
+    void (*on_incr_combo)(fighter_t *);              /* antes de incrementar o combo */
+    int  (*meter_gain_modified)(fighter_t *, int amount);   /* pos base */
+    void (*on_state_ended)(fighter_t *, state_t *);
+    void (*on_use_burst)(fighter_t *);
 } fighter_vt_t;
 void fighter_emit_got_hit(fighter_t *f);
+void fighter_emit_got_hit_by(fighter_t *f, const hitdata_t *h);
+void fighter_on_state_exited(obj_t *o, state_t *s);
+void fighter_gain_air_option_bar(fighter_t *f, int amount);
+void fighter_drain_air_option_bar(fighter_t *f, int amount);
 void obj_apply_forces(obj_t *o);
 void obj_apply_grav(obj_t *o);
 

@@ -121,7 +121,7 @@ def main(jpath, cid, out, root=None):
     def sidh(name):      # estado de hit: em projetil o sid e o id interno do nome (o motor traduz para o alvo)
         if not name: return -1
         return sid[name] if name in sid else (nid(name) if is_proj else -1)
-    for nm in ('OffensiveBurst', 'InstantCancel', 'GroundedDefense', 'AerialDefense', 'GroundedGrab', 'AerialGrab', 'Wait', 'Fall', 'BusyNormal', 'BusyHurt', 'Normal', 'All'):
+    for nm in ('OffensiveBurst', 'InstantCancel', 'GroundedDefense', 'AerialDefense', 'GroundedGrab', 'AerialGrab', 'Wait', 'Fall', 'BusyNormal', 'BusyHurt', 'Normal', 'All', 'HurtAerial', 'Landing', 'Active', 'Default'):
         nid(nm)
     extra = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'extra_names.txt')
     if os.path.exists(extra):

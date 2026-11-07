@@ -20,6 +20,7 @@ sid cs_frame_shared(obj_t *o, state_t *s, int tick)
     if (tick != 0) return SID_NONE;
     fighter_t *f = F(o);
     if (!xp_find(&s->d, "super_level")) return SID_NONE;       /* so SuperMove gasta barra */
+    if (xp_find(&s->d, "is_super") && !xp_int(&s->d, "is_super", 0)) return SID_NONE;   /* RobotState */
     int sl = xp_int(&s->d, "super_level", 1), su = xp_int(&s->d, "supers_used", -1);
     int levels = su == -1 ? sl : su;
     if (xp_int(&s->d, "scale_combo_meter", 1) && levels > 0) f->combo_supers++;
@@ -37,6 +38,7 @@ sid cs_enter_shared(obj_t *o, state_t *s)
     if (s->d.kind != KIND_PARRY_NEW) f->block_used_air_movement = false;
     s->started_during_combo = false;
     if (c->dynamic_iasa) s->cs.interruptible_on_opponent_turn = s->def->cs->interruptible_on_opponent_turn;
+    if (xp_int(&s->d, "throw_invuln_frames", 0) > 0) o->throw_invulnerable = true;      /* RobotState */
     s->hit_yet = false; s->land_cancelled = false; s->hit_anything = false; s->hit_fighter = false;
     s->hit_hit_cancellable_projectile = false;
     s->entered_in_air = !o->chara.grounded;
@@ -74,6 +76,7 @@ sid cs_tick_shared(obj_t *o, state_t *s)
 {
     fighter_t *f = F(o);
     charstate_def_t *c = &s->cs;
+    { int tif = xp_int(&s->d, "throw_invuln_frames", 0); if (tif > 0 && s->current_tick == tif) o->throw_invulnerable = false; }
     if (s->current_tick == 0) {
         s->initiative_startup_reduction = false;
         s->feinting = f->feinting;
@@ -176,6 +179,7 @@ void cs_on_hit_something(fighter_t *host, state_t *s, obj_t *victim, const hitbo
         fighter_stack_move(host, s->d.name_id);
         if (host->combo_count > 0) s->started_during_combo = true;
     }
+    if (host->vt && host->vt->on_hit_something) host->vt->on_hit_something(host, victim);
     if (c->count_projectile_hits && !vf) s->hit_anything = true;
     if (vf) {
         s->hit_anything = true; s->hit_fighter = true;
